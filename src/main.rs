@@ -256,10 +256,10 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Food Log Days"),
+                    .title("Food Log Days")
+                    .padding(ratatui::widgets::Padding::horizontal(1)),
             )
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         f.render_stateful_widget(list, chunks[1], &mut self.list_state);
 
@@ -322,9 +322,13 @@ impl App {
         };
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Food Items"))
-            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-            .highlight_symbol(">> ");
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Food Items")
+                    .padding(ratatui::widgets::Padding::horizontal(1)),
+            )
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, chunks[1], &mut self.food_list_state);
 
         // Help
