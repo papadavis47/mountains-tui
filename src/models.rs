@@ -78,7 +78,10 @@ impl AppState {
         } else {
             self.daily_logs.push(DailyLog::new(date));
             self.daily_logs.sort_by(|a, b| b.date.cmp(&a.date)); // Sort newest first
-            self.daily_logs.iter_mut().find(|log| log.date == date).unwrap()
+            self.daily_logs
+                .iter_mut()
+                .find(|log| log.date == date)
+                .unwrap()
         }
     }
 
