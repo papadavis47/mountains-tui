@@ -29,6 +29,8 @@ struct App {
     input_buffer: String,
     notes_buffer: String,
     cursor_position: usize,
+    weight_buffer: String,
+    waist_buffer: String,
 }
 
 impl App {
@@ -48,6 +50,8 @@ impl App {
             input_buffer: String::new(),
             notes_buffer: String::new(),
             cursor_position: 0,
+            weight_buffer: String::new(),
+            waist_buffer: String::new(),
         })
     }
 
@@ -149,6 +153,90 @@ impl App {
                         }
                         _ => {}
                     },
+                    AppScreen::EditWeight => match key.code {
+                        KeyCode::Enter => {
+                            let weight: Option<f32> = if self.input_buffer.is_empty() {
+                                None
+                            } else {
+                                self.input_buffer.parse().ok()
+                            };
+                            let log = self.state.get_or_create_daily_log(self.state.selected_date);
+                            log.weight = weight;
+                            let _ = self.file_manager.save_daily_log(log);
+                            self.clear_input();
+                            self.state.current_screen = AppScreen::DailyView;
+                        }
+                        KeyCode::Esc => {
+                            self.clear_input();
+                            self.state.current_screen = AppScreen::DailyView;
+                        }
+                        KeyCode::Char(c) => {
+                            if c.is_ascii_digit() || c == '.' {
+                                self.insert_char(c);
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            self.delete_char();
+                        }
+                        KeyCode::Delete => {
+                            self.delete_char_forward();
+                        }
+                        KeyCode::Left => {
+                            self.move_cursor_left();
+                        }
+                        KeyCode::Right => {
+                            self.move_cursor_right();
+                        }
+                        KeyCode::Home => {
+                            self.cursor_position = 0;
+                        }
+                        KeyCode::End => {
+                            self.cursor_position = self.input_buffer.len();
+                        }
+                        _ => {}
+                    },
+                    AppScreen::EditWaist => match key.code {
+                        KeyCode::Enter => {
+                            let waist: Option<f32> = if self.input_buffer.is_empty() {
+                                None
+                            } else {
+                                self.input_buffer.parse().ok()
+                            };
+                            let log = self.state.get_or_create_daily_log(self.state.selected_date);
+                            log.waist = waist;
+                            let _ = self.file_manager.save_daily_log(log);
+                            self.clear_input();
+                            self.state.current_screen = AppScreen::DailyView;
+                        }
+                        KeyCode::Esc => {
+                            self.clear_input();
+                            self.state.current_screen = AppScreen::DailyView;
+                        }
+                        KeyCode::Char(c) => {
+                            if c.is_ascii_digit() || c == '.' {
+                                self.insert_char(c);
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            self.delete_char();
+                        }
+                        KeyCode::Delete => {
+                            self.delete_char_forward();
+                        }
+                        KeyCode::Left => {
+                            self.move_cursor_left();
+                        }
+                        KeyCode::Right => {
+                            self.move_cursor_right();
+                        }
+                        KeyCode::Home => {
+                            self.cursor_position = 0;
+                        }
+                        KeyCode::End => {
+                            self.cursor_position = self.input_buffer.len();
+                        }
+                        _ => {}
+                    },
                     _ => match key.code {
                         KeyCode::Char('q') => {
                             self.should_quit = true;
@@ -188,6 +276,16 @@ impl App {
                                 self.handle_delete_food();
                             }
                         }
+                        KeyCode::Char('w') => {
+                            if matches!(self.state.current_screen, AppScreen::DailyView) {
+                                self.handle_edit_weight();
+                            }
+                        }
+                        KeyCode::Char('s') => {
+                            if matches!(self.state.current_screen, AppScreen::DailyView) {
+                                self.handle_edit_waist();
+                            }
+                        }
                         _ => {}
                     },
                 }
@@ -206,6 +304,8 @@ impl App {
             AppScreen::DailyView => self.draw_daily_view_screen(f),
             AppScreen::AddFood => self.draw_add_food_screen(f),
             AppScreen::EditFood(_) => self.draw_edit_food_screen(f),
+            AppScreen::EditWeight => self.draw_edit_weight_screen(f),
+            AppScreen::EditWaist => self.draw_edit_waist_screen(f),
             _ => self.draw_home_screen(f), // Default to home for now
         }
     }
@@ -225,7 +325,7 @@ impl App {
             .split(f.area());
 
         // Title
-        let title = Paragraph::new("Mountains Food Tracker")
+        let title = Paragraph::new("Mountains - A Food Tracker for Power to Weight Improvement")
             .style(
                 Style::default()
                     .fg(Color::Cyan)
@@ -256,7 +356,7 @@ impl App {
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Food Log Days")
+                    .title("Mountains Food Log Days")
                     .padding(ratatui::widgets::Padding::horizontal(1)),
             )
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
@@ -277,6 +377,7 @@ impl App {
             .constraints(
                 [
                     Constraint::Length(3),
+                    Constraint::Length(4),
                     Constraint::Min(0),
                     Constraint::Length(3),
                 ]
@@ -286,7 +387,7 @@ impl App {
 
         // Title with date
         let title = format!(
-            "Food Log - {}",
+            "Mountains Food Log - {}",
             self.state.selected_date.format("%B %d, %Y")
         );
         let title_widget = Paragraph::new(title)
@@ -297,6 +398,29 @@ impl App {
             )
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(title_widget, chunks[0]);
+
+        // Measurements display
+        let log = self.state.get_daily_log(self.state.selected_date);
+        let measurements_text = if let Some(log) = log {
+            let weight_str = if let Some(weight) = log.weight {
+                format!("Weight: {} lbs", weight)
+            } else {
+                "Weight: Not set".to_string()
+            };
+            let waist_str = if let Some(waist) = log.waist {
+                format!("Waist: {} inches", waist)
+            } else {
+                "Waist: Not set".to_string()
+            };
+            format!("{} | {}", weight_str, waist_str)
+        } else {
+            "Weight: Not set | Waist: Not set".to_string()
+        };
+
+        let measurements_widget = Paragraph::new(measurements_text)
+            .style(Style::default().fg(Color::Yellow))
+            .block(Block::default().borders(Borders::ALL).title("Measurements"));
+        f.render_widget(measurements_widget, chunks[1]);
 
         // Food items list
         let log = self.state.get_daily_log(self.state.selected_date);
@@ -329,15 +453,15 @@ impl App {
                     .padding(ratatui::widgets::Padding::horizontal(1)),
             )
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-        f.render_stateful_widget(list, chunks[1], &mut self.food_list_state);
+        f.render_stateful_widget(list, chunks[2], &mut self.food_list_state);
 
         // Help
         let help = Paragraph::new(
-            "q: quit | a: add | e: edit | d: delete | ↑/↓: navigate | Esc: back to home",
+            "q: quit | a: add | e: edit | d: delete | w: weight | s: waist | ↑/↓: navigate | Esc: back to home",
         )
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::ALL));
-        f.render_widget(help, chunks[2]);
+        f.render_widget(help, chunks[3]);
     }
 
     fn draw_add_food_screen(&mut self, f: &mut Frame) {
@@ -594,10 +718,116 @@ impl App {
         }
     }
 
+    fn draw_edit_weight_screen(&mut self, f: &mut Frame) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Length(3),
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                ]
+                .as_ref(),
+            )
+            .split(f.area());
+
+        // Title
+        let title = format!(
+            "Edit Weight - {}",
+            self.state.selected_date.format("%B %d, %Y")
+        );
+        let title_widget = Paragraph::new(title)
+            .style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title_widget, chunks[0]);
+
+        // Input field with cursor
+        let input_with_cursor = self.format_input_with_cursor();
+        let input = Paragraph::new(input_with_cursor)
+            .style(Style::default().fg(Color::Yellow))
+            .block(Block::default().borders(Borders::ALL).title("Weight (lbs)"));
+        f.render_widget(input, chunks[1]);
+
+        // Set cursor position in terminal
+        let input_area = chunks[1];
+        let cursor_x = input_area.x + 1 + self.cursor_position as u16; // +1 for border
+        let cursor_y = input_area.y + 1; // +1 for border
+        f.set_cursor_position((cursor_x, cursor_y));
+
+        // Help
+        let help = Paragraph::new(
+            "Enter weight in lbs (numbers and decimal only) | Enter: save | Esc: cancel",
+        )
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL));
+        f.render_widget(help, chunks[2]);
+    }
+
+    fn draw_edit_waist_screen(&mut self, f: &mut Frame) {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints(
+                [
+                    Constraint::Length(3),
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                ]
+                .as_ref(),
+            )
+            .split(f.area());
+
+        // Title
+        let title = format!(
+            "Edit Waist - {}",
+            self.state.selected_date.format("%B %d, %Y")
+        );
+        let title_widget = Paragraph::new(title)
+            .style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(title_widget, chunks[0]);
+
+        // Input field with cursor
+        let input_with_cursor = self.format_input_with_cursor();
+        let input = Paragraph::new(input_with_cursor)
+            .style(Style::default().fg(Color::Yellow))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Waist (inches)"),
+            );
+        f.render_widget(input, chunks[1]);
+
+        // Set cursor position in terminal
+        let input_area = chunks[1];
+        let cursor_x = input_area.x + 1 + self.cursor_position as u16; // +1 for border
+        let cursor_y = input_area.y + 1; // +1 for border
+        f.set_cursor_position((cursor_x, cursor_y));
+
+        // Help
+        let help = Paragraph::new(
+            "Enter waist size in inches (numbers and decimal only) | Enter: save | Esc: cancel",
+        )
+        .style(Style::default().fg(Color::Gray))
+        .block(Block::default().borders(Borders::ALL));
+        f.render_widget(help, chunks[2]);
+    }
+
     fn clear_input(&mut self) {
         self.input_buffer.clear();
         self.notes_buffer.clear();
         self.cursor_position = 0;
+        self.weight_buffer.clear();
+        self.waist_buffer.clear();
     }
 
     fn insert_char(&mut self, c: char) {
@@ -666,6 +896,36 @@ impl App {
                 }
             }
         }
+    }
+
+    fn handle_edit_weight(&mut self) {
+        // Pre-fill the input buffer with the current weight if it exists
+        if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+            if let Some(weight) = log.weight {
+                self.input_buffer = weight.to_string();
+            } else {
+                self.input_buffer.clear();
+            }
+        } else {
+            self.input_buffer.clear();
+        }
+        self.cursor_position = self.input_buffer.len();
+        self.state.current_screen = AppScreen::EditWeight;
+    }
+
+    fn handle_edit_waist(&mut self) {
+        // Pre-fill the input buffer with the current waist if it exists
+        if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+            if let Some(waist) = log.waist {
+                self.input_buffer = waist.to_string();
+            } else {
+                self.input_buffer.clear();
+            }
+        } else {
+            self.input_buffer.clear();
+        }
+        self.cursor_position = self.input_buffer.len();
+        self.state.current_screen = AppScreen::EditWaist;
     }
 }
 

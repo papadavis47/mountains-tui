@@ -51,6 +51,8 @@ pub enum AppScreen {
     AddFood,
     EditFood(usize),
     AddMeasurements,
+    EditWeight,
+    EditWaist,
     EditNotes,
 }
 
