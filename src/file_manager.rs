@@ -1,18 +1,15 @@
-/// File management for the Mountains Food Tracker
-///
+use crate::models::{DailyLog, FoodEntry};
+use anyhow::{Context, Result};
+use chrono::NaiveDate;
+use std::fs;
+use std::path::PathBuf;
+
 /// This module handles all file I/O operations for the application.
 /// It manages saving and loading daily logs to/from markdown files
 /// in the user's home directory.
 ///
 /// The file format used is human-readable markdown, which allows users
 /// to view and edit their data outside of the application if needed.
-
-use std::fs;
-use std::path::PathBuf;
-use anyhow::{Context, Result};
-use chrono::NaiveDate;
-use crate::models::{DailyLog, FoodEntry};
-
 /// Manages file operations for daily logs
 ///
 /// The FileManager is responsible for:
@@ -47,8 +44,7 @@ impl FileManager {
         // Create directory if it doesn't exist
         // create_dir_all() creates parent directories as needed and doesn't fail if the directory exists
         if !mountains_dir.exists() {
-            fs::create_dir_all(&mountains_dir)
-                .context("Failed to create .mountains directory")?;
+            fs::create_dir_all(&mountains_dir).context("Failed to create .mountains directory")?;
         }
 
         Ok(Self { mountains_dir })
@@ -182,7 +178,10 @@ impl FileManager {
         let mut content = String::new();
 
         // Add the main title
-        content.push_str(&format!("# Food Log - {}\n\n", log.date.format("%B %d, %Y")));
+        content.push_str(&format!(
+            "# Food Log - {}\n\n",
+            log.date.format("%B %d, %Y")
+        ));
 
         // Add measurements section if any measurements exist
         if log.weight.is_some() || log.waist.is_some() {
@@ -260,14 +259,20 @@ impl FileManager {
                 in_notes = false;
             } else if in_measurements && trimmed.starts_with("- **Weight:**") {
                 // Parse weight measurement
-                if let Some(weight_str) = trimmed.strip_prefix("- **Weight:**").and_then(|s| s.strip_suffix(" lbs")) {
+                if let Some(weight_str) = trimmed
+                    .strip_prefix("- **Weight:**")
+                    .and_then(|s| s.strip_suffix(" lbs"))
+                {
                     if let Ok(weight) = weight_str.trim().parse::<f32>() {
                         log.weight = Some(weight);
                     }
                 }
             } else if in_measurements && trimmed.starts_with("- **Waist:**") {
                 // Parse waist measurement
-                if let Some(waist_str) = trimmed.strip_prefix("- **Waist:**").and_then(|s| s.strip_suffix(" inches")) {
+                if let Some(waist_str) = trimmed
+                    .strip_prefix("- **Waist:**")
+                    .and_then(|s| s.strip_suffix(" inches"))
+                {
                     if let Ok(waist) = waist_str.trim().parse::<f32>() {
                         log.waist = Some(waist);
                     }
@@ -280,7 +285,13 @@ impl FileManager {
                         let name = parts[0].trim().to_string();
                         // Check if there are notes after the food name
                         let notes = if parts.len() > 2 && parts[1].trim().starts_with(" - ") {
-                            Some(parts[1].trim().strip_prefix(" - ").unwrap_or("").to_string())
+                            Some(
+                                parts[1]
+                                    .trim()
+                                    .strip_prefix(" - ")
+                                    .unwrap_or("")
+                                    .to_string(),
+                            )
                         } else {
                             None
                         };
@@ -304,4 +315,3 @@ impl FileManager {
         Ok(log)
     }
 }
-

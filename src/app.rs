@@ -1,11 +1,7 @@
-/// Main application logic for the Mountains Food Tracker
-///
 /// This module contains the core App struct and its implementation.
+
 /// The App struct manages the overall application state and coordinates
 /// between the UI, event handling, and data persistence.
-///
-/// By separating the app logic from main.rs, we make the code more modular
-/// and easier to test.
 use anyhow::Result;
 use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::CrosstermBackend, widgets::ListState};
@@ -16,16 +12,12 @@ use crate::file_manager::FileManager;
 use crate::models::{AppScreen, AppState};
 use crate::ui::screens;
 
-/// The main application struct that manages all application state
-///
 /// This struct follows the "composition over inheritance" principle by
 /// containing specialized handlers for different concerns:
 /// - AppState: Core application state and data
 /// - FileManager: File I/O operations
 /// - InputHandler: Text input and cursor management
 /// - ListState: UI list selection state
-///
-/// The separation of concerns makes the code easier to understand and maintain.
 pub struct App {
     /// Core application state containing daily logs and current screen
     state: AppState,
@@ -42,21 +34,19 @@ pub struct App {
 }
 
 impl App {
-    /// Creates a new App instance and loads existing data
-    ///
-    /// This constructor:
+    /// The following constructor:
     /// 1. Creates a new FileManager to handle data persistence
     /// 2. Initializes the application state
     /// 3. Loads all existing daily logs from disk
     /// 4. Sets up UI state managers
-    ///
+
     /// The Result<Self, anyhow::Error> return type allows proper error handling
     /// if file operations fail during initialization.
+
     pub fn new() -> Result<Self> {
         let file_manager = FileManager::new()?;
         let mut state = AppState::new();
 
-        // Load existing logs from disk
         // This populates the state with any previously saved daily logs
         state.daily_logs = file_manager.load_all_daily_logs()?;
 
@@ -70,8 +60,6 @@ impl App {
         })
     }
 
-    /// Main application loop
-    ///
     /// This method runs the application by:
     /// 1. Drawing the current screen
     /// 2. Reading user input events
@@ -79,6 +67,7 @@ impl App {
     /// 4. Repeating until the user quits
     ///
     /// The loop continues until should_quit becomes true.
+
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
         loop {
             // Draw the current UI state
@@ -97,8 +86,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles keyboard events with modifiers based on the current screen
-    ///
     /// This method routes keyboard input to the appropriate handler based on
     /// the current screen. It also handles special key combinations with modifiers.
     fn handle_key_event_with_modifiers(
@@ -117,11 +104,10 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Add Food screen
-    ///
     /// This method processes text input for adding new food entries.
     /// Enter saves the entry, Escape cancels, and other keys are handled
     /// by the InputHandler for text editing.
+
     fn handle_add_food_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
@@ -148,8 +134,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Edit Food screen
-    ///
     /// Similar to add food input, but updates an existing food entry.
     fn handle_edit_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
         match key {
@@ -176,8 +160,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Edit Weight screen
-    ///
     /// Uses numeric input handling to only allow numbers and decimal points.
     fn handle_edit_weight_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
@@ -204,8 +186,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Edit Waist screen
-    ///
     /// Similar to weight input but for waist measurements.
     fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
@@ -229,8 +209,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Edit Notes screen
-    ///
     /// This method processes multi-line text input for editing daily notes.
     /// It supports special key combinations like Ctrl+J for newlines.
     /// Handles input for the Edit Notes screen with modifier support
@@ -274,8 +252,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles navigation and action keys for non-input screens
-    ///
     /// This method handles keyboard input for the Home and Daily View screens,
     /// including navigation (up/down), actions (add, edit, delete), and
     /// screen transitions.
@@ -350,8 +326,6 @@ impl App {
         Ok(())
     }
 
-    /// Renders the appropriate UI screen based on current application state
-    ///
     /// This method acts as a router, delegating to the appropriate screen
     /// rendering function based on the current screen enum value.
     fn ui(&mut self, f: &mut Frame) {
@@ -452,8 +426,6 @@ impl App {
         }
     }
 
-    /// Handles the Enter key press
-    ///
     /// Behavior depends on the current screen:
     /// - Home: Navigate to selected daily log or create today's log
     /// - Other screens: No action (input screens handle Enter separately)
@@ -468,8 +440,6 @@ impl App {
         }
     }
 
-    /// Handles the Escape key press
-    ///
     /// Generally used to go back to the previous screen:
     /// - Daily View: Return to Home
     /// - Input screens: Handle separately in their input methods
@@ -484,8 +454,6 @@ impl App {
         }
     }
 
-    /// Initiates editing of the selected food entry
-    ///
     /// This method:
     /// 1. Gets the currently selected food index
     /// 2. Pre-fills the input buffer with the current food name
@@ -500,8 +468,6 @@ impl App {
         }
     }
 
-    /// Deletes the selected food entry
-    ///
     /// This method also handles updating the selection state after deletion.
     fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
@@ -523,8 +489,6 @@ impl App {
         Ok(())
     }
 
-    /// Initiates editing of the weight measurement
-    ///
     /// Pre-fills the input buffer with the current weight value if it exists.
     fn handle_edit_weight(&mut self) {
         let current_weight = ActionHandler::start_edit_weight(&self.state);
@@ -532,8 +496,6 @@ impl App {
         self.state.current_screen = AppScreen::EditWeight;
     }
 
-    /// Initiates editing of the waist measurement
-    ///
     /// Pre-fills the input buffer with the current waist value if it exists.
     fn handle_edit_waist(&mut self) {
         let current_waist = ActionHandler::start_edit_waist(&self.state);
@@ -541,8 +503,6 @@ impl App {
         self.state.current_screen = AppScreen::EditWaist;
     }
 
-    /// Initiates editing of the daily notes
-    ///
     /// Pre-fills the input buffer with the current notes value if it exists.
     fn handle_edit_notes(&mut self) {
         let current_notes = ActionHandler::start_edit_notes(&self.state);
