@@ -1,1 +1,22 @@
+# Rust build artifacts
 /target
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# CookieJar local database (user's personal data)
+.mountains/
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

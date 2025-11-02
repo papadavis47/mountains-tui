@@ -8,6 +8,7 @@
 /// type of user interaction, making the code easier to maintain and debug.
 use crossterm::event::KeyCode;
 
+use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
 use crate::models::{AppScreen, AppState, FoodEntry};
 
@@ -402,12 +403,14 @@ impl ActionHandler {
     /// 1. Creates a new FoodEntry from the input
     /// 2. Gets or creates the daily log for the selected date
     /// 3. Adds the entry to the log
-    /// 4. Saves the log to disk
+    /// 4. Saves the log to database (with cloud sync)
+    /// 5. Optionally saves to markdown file as backup
     ///
     /// The Result<(), anyhow::Error> return type allows the caller to handle
-    /// any errors that might occur during file operations.
+    /// any errors that might occur during database operations.
     pub fn save_food_entry(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         food_name: String,
         notes: Option<String>,
@@ -416,7 +419,12 @@ impl ActionHandler {
             let food_entry = FoodEntry::new(food_name, notes);
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_food_entry(food_entry);
-            file_manager.save_daily_log(log)?;
+
+            // Save to database (primary storage with cloud sync)
+            tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+
+            // Optionally save to markdown as backup
+            let _ = file_manager.save_daily_log(log); // Ignore markdown errors
         }
         Ok(())
     }
@@ -426,6 +434,7 @@ impl ActionHandler {
     /// This function finds the food entry by index and updates its name.
     pub fn update_food_entry(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         food_index: usize,
         new_name: String,
@@ -438,7 +447,8 @@ impl ActionHandler {
             {
                 if food_index < log.food_entries.len() {
                     log.food_entries[food_index].name = new_name;
-                    file_manager.save_daily_log(log)?;
+                    tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                    let _ = file_manager.save_daily_log(log); // Backup to markdown
                 }
             }
         }
@@ -447,10 +457,11 @@ impl ActionHandler {
 
     /// Deletes a food entry from the daily log
     ///
-    /// This function removes a food entry by index and updates the file.
+    /// This function removes a food entry by index and updates the database.
     /// It also handles updating the selection state if needed.
     pub fn delete_food_entry(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         food_index: usize,
     ) -> anyhow::Result<()> {
@@ -461,7 +472,8 @@ impl ActionHandler {
         {
             if food_index < log.food_entries.len() {
                 log.remove_food_entry(food_index);
-                file_manager.save_daily_log(log)?;
+                tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                let _ = file_manager.save_daily_log(log); // Backup to markdown
             }
         }
         Ok(())
@@ -473,6 +485,7 @@ impl ActionHandler {
     /// Empty input clears the weight (sets it to None).
     pub fn update_weight(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         weight_input: String,
     ) -> anyhow::Result<()> {
@@ -483,7 +496,8 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.weight = weight;
-        file_manager.save_daily_log(log)?;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
 
@@ -492,6 +506,7 @@ impl ActionHandler {
     /// Similar to update_weight but for waist measurements.
     pub fn update_waist(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         waist_input: String,
     ) -> anyhow::Result<()> {
@@ -502,7 +517,8 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.waist = waist;
-        file_manager.save_daily_log(log)?;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
 
@@ -565,6 +581,7 @@ impl ActionHandler {
     /// Empty input clears the notes (sets it to None).
     pub fn update_notes(
         state: &mut AppState,
+        db_manager: &mut DbManager,
         file_manager: &FileManager,
         notes_input: String,
     ) -> anyhow::Result<()> {
@@ -575,7 +592,8 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.notes = notes;
-        file_manager.save_daily_log(log)?;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
 

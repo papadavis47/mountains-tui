@@ -2,11 +2,13 @@
 
 /// The App struct manages the overall application state and coordinates
 /// between the UI, event handling, and data persistence.
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::CrosstermBackend, widgets::ListState};
 use std::io;
+use std::time::{Duration, Instant};
 
+use crate::db_manager::DbManager;
 use crate::events::handlers::{ActionHandler, InputHandler, NavigationHandler};
 use crate::file_manager::FileManager;
 use crate::models::{AppScreen, AppState};
@@ -15,13 +17,16 @@ use crate::ui::screens;
 /// This struct follows the "composition over inheritance" principle by
 /// containing specialized handlers for different concerns:
 /// - AppState: Core application state and data
-/// - FileManager: File I/O operations
+/// - DbManager: Database operations with Turso Cloud sync
+/// - FileManager: Markdown file backups
 /// - InputHandler: Text input and cursor management
 /// - ListState: UI list selection state
 pub struct App {
     /// Core application state containing daily logs and current screen
     state: AppState,
-    /// Handles saving and loading daily logs to/from markdown files
+    /// Handles database operations with Turso Cloud sync
+    db_manager: DbManager,
+    /// Handles saving and loading daily logs to/from markdown files (backup)
     file_manager: FileManager,
     /// Manages text input for various input screens
     input_handler: InputHandler,
@@ -31,52 +36,79 @@ pub struct App {
     food_list_state: ListState,
     /// Flag to indicate when the application should exit
     should_quit: bool,
+    /// Timestamp of the last cloud sync operation
+    last_sync_time: Instant,
 }
 
 impl App {
     /// The following constructor:
-    /// 1. Creates a new FileManager to handle data persistence
-    /// 2. Initializes the application state
-    /// 3. Loads all existing daily logs from disk
-    /// 4. Sets up UI state managers
+    /// 1. Creates the data directory (~/.mountains/)
+    /// 2. Initializes DbManager with Turso Cloud sync
+    /// 3. Creates FileManager for markdown backups
+    /// 4. Loads all existing daily logs from the database
+    /// 5. Sets up UI state managers
 
     /// The Result<Self, anyhow::Error> return type allows proper error handling
-    /// if file operations fail during initialization.
+    /// if database or file operations fail during initialization.
 
-    pub fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self> {
+        // Get the user's home directory and create .mountains directory
+        let home_dir = dirs::home_dir().context("Could not find home directory")?;
+        let mountains_dir = home_dir.join(".mountains");
+
+        // Create directory if it doesn't exist
+        if !mountains_dir.exists() {
+            std::fs::create_dir_all(&mountains_dir)
+                .context("Failed to create .mountains directory")?;
+        }
+
+        // Initialize database manager with Turso Cloud sync
+        let db_manager = DbManager::new(&mountains_dir).await?;
+
+        // Initialize file manager for markdown backups
         let file_manager = FileManager::new()?;
+
         let mut state = AppState::new();
 
-        // This populates the state with any previously saved daily logs
-        state.daily_logs = file_manager.load_all_daily_logs()?;
+        // Load all daily logs from the database (primary source of truth)
+        state.daily_logs = db_manager.load_all_daily_logs().await?;
 
         Ok(Self {
             state,
+            db_manager,
             file_manager,
             input_handler: InputHandler::new(),
             list_state: ListState::default(),
             food_list_state: ListState::default(),
             should_quit: false,
+            last_sync_time: Instant::now(),
         })
     }
 
     /// This method runs the application by:
     /// 1. Drawing the current screen
-    /// 2. Reading user input events
+    /// 2. Reading user input events (with timeout)
     /// 3. Processing events and updating state
-    /// 4. Repeating until the user quits
+    /// 4. Periodically syncing with Turso Cloud (every 60 seconds)
+    /// 5. Repeating until the user quits
     ///
     /// The loop continues until should_quit becomes true.
+    /// Uses a 1-second timeout to allow periodic sync checks without blocking UX.
 
     pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
         loop {
             // Draw the current UI state
             terminal.draw(|f| self.ui(f))?;
 
-            // Read and process the next keyboard event
-            if let Event::Key(key) = crossterm::event::read()? {
-                self.handle_key_event_with_modifiers(key.code, key.modifiers)?;
+            // Read keyboard event with timeout to allow periodic sync checks
+            if crossterm::event::poll(Duration::from_secs(1))? {
+                if let Event::Key(key) = crossterm::event::read()? {
+                    self.handle_key_event_with_modifiers(key.code, key.modifiers)?;
+                }
             }
+
+            // Check if we should sync with Turso Cloud (every 60 seconds)
+            self.check_and_sync()?;
 
             // Exit the loop if the user wants to quit
             if self.should_quit {
@@ -114,6 +146,7 @@ impl App {
                 // Save the food entry and return to daily view
                 ActionHandler::save_food_entry(
                     &mut self.state,
+                    &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                     None, // No notes support in current implementation
@@ -141,6 +174,7 @@ impl App {
                 // Update the existing food entry
                 ActionHandler::update_food_entry(
                     &mut self.state,
+                    &mut self.db_manager,
                     &self.file_manager,
                     food_index,
                     self.input_handler.input_buffer.clone(),
@@ -167,6 +201,7 @@ impl App {
                 // Save the weight measurement
                 ActionHandler::update_weight(
                     &mut self.state,
+                    &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                 )?;
@@ -192,6 +227,7 @@ impl App {
             KeyCode::Enter => {
                 ActionHandler::update_waist(
                     &mut self.state,
+                    &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                 )?;
@@ -233,6 +269,7 @@ impl App {
                 // Save the notes and return to daily view
                 ActionHandler::update_notes(
                     &mut self.state,
+                    &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                 )?;
@@ -471,7 +508,7 @@ impl App {
     /// This method also handles updating the selection state after deletion.
     fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
-            ActionHandler::delete_food_entry(&mut self.state, &self.file_manager, selected_index)?;
+            ActionHandler::delete_food_entry(&mut self.state, &mut self.db_manager, &self.file_manager, selected_index)?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -508,5 +545,51 @@ impl App {
         let current_notes = ActionHandler::start_edit_notes(&self.state);
         self.input_handler.set_input(current_notes);
         self.state.current_screen = AppScreen::EditNotes;
+    }
+
+    /// Checks if enough time has passed since last sync and syncs if appropriate
+    ///
+    /// This method:
+    /// 1. Checks if 60 seconds have passed since the last sync
+    /// 2. Checks if the user is currently typing (in an input screen)
+    /// 3. If enough time has passed and user is not typing, triggers a sync
+    ///
+    /// This ensures regular syncing while the app is active, but avoids
+    /// interrupting the user during input operations.
+    fn check_and_sync(&mut self) -> Result<()> {
+        const SYNC_INTERVAL: Duration = Duration::from_secs(60);
+
+        // Check if enough time has passed since last sync
+        if self.last_sync_time.elapsed() < SYNC_INTERVAL {
+            return Ok(()); // Not time to sync yet
+        }
+
+        // Check if user is currently typing - if so, skip sync to avoid interruption
+        if self.is_user_typing() {
+            return Ok(()); // User is typing, don't interrupt
+        }
+
+        // Perform the sync (non-blocking, runs in background)
+        tokio::runtime::Handle::current().block_on(self.db_manager.sync_now())?;
+
+        // Update last sync time
+        self.last_sync_time = Instant::now();
+
+        Ok(())
+    }
+
+    /// Returns true if the user is currently in an input screen (typing mode)
+    ///
+    /// We avoid syncing during input operations to prevent any potential
+    /// interruption or lag while the user is actively entering data.
+    fn is_user_typing(&self) -> bool {
+        matches!(
+            self.state.current_screen,
+            AppScreen::AddFood
+                | AppScreen::EditFood(_)
+                | AppScreen::EditWeight
+                | AppScreen::EditWaist
+                | AppScreen::EditNotes
+        )
     }
 }

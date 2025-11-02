@@ -13,6 +13,7 @@
 // Module declarations
 // In Rust, you need to declare modules before you can use them
 mod app; // Main application logic
+mod db_manager; // Database operations with Turso
 mod events; // Event handling modules
 mod file_manager; // File I/O operations
 mod models; // Data structures and types
@@ -34,13 +35,18 @@ use crate::app::App;
 /// Main function - Entry point of the application
 ///
 /// The main function is responsible for:
-/// 1. Setting up the terminal for TUI (Text User Interface) mode
-/// 2. Creating and running the application
-/// 3. Properly cleaning up terminal state when done
+/// 1. Loading environment variables for Turso configuration
+/// 2. Setting up the terminal for TUI (Text User Interface) mode
+/// 3. Creating and running the application
+/// 4. Properly cleaning up terminal state when done
 ///
 /// The Result<()> return type allows proper error propagation.
 /// If any operation fails, the error bubbles up and can be handled.
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Load environment variables from .env file
+    // This is required for Turso database URL and auth token
+    dotenvy::dotenv().ok(); // ok() makes it optional - won't fail if .env doesn't exist
     // Terminal setup phase
     // These operations prepare the terminal for TUI mode
     setup_terminal()?;
@@ -53,8 +59,8 @@ fn main() -> Result<()> {
     // Application execution phase
     // We use a separate scope here so that app is dropped before cleanup
     let result = {
-        // Create and run the application
-        let mut app = App::new()?;
+        // Create and run the application (async to initialize database)
+        let mut app = App::new().await?;
         app.run(&mut terminal)
     };
 
