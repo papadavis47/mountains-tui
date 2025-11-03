@@ -187,6 +187,46 @@ impl InputHandler {
         }
     }
 
+    /// Handles integer-only input key events (for elevation gain)
+    ///
+    /// This is similar to handle_numeric_input but only allows digits (no decimal point).
+    pub fn handle_integer_input(&mut self, key: KeyCode) -> bool {
+        match key {
+            KeyCode::Char(c) => {
+                // Only allow digits for integer input
+                if c.is_ascii_digit() {
+                    self.insert_char(c);
+                }
+                true
+            }
+            KeyCode::Backspace => {
+                self.delete_char();
+                true
+            }
+            KeyCode::Delete => {
+                self.delete_char_forward();
+                true
+            }
+            KeyCode::Left => {
+                self.move_cursor_left();
+                true
+            }
+            KeyCode::Right => {
+                self.move_cursor_right();
+                true
+            }
+            KeyCode::Home => {
+                self.move_cursor_home();
+                true
+            }
+            KeyCode::End => {
+                self.move_cursor_end();
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Handles multi-line text input key events (for notes editing)
     ///
     /// This is similar to handle_text_input but adds support for:
@@ -607,5 +647,164 @@ impl ActionHandler {
             }
         }
         String::new()
+    }
+
+    /// Updates the miles covered for the selected date
+    ///
+    /// This function parses the input string as a float and saves it.
+    /// Empty input clears the miles (sets it to None).
+    pub fn update_miles(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        miles_input: String,
+    ) -> anyhow::Result<()> {
+        let miles: Option<f32> = if miles_input.is_empty() {
+            None
+        } else {
+            miles_input.parse().ok()
+        };
+        let log = state.get_or_create_daily_log(state.selected_date);
+        log.miles_covered = miles;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
+        Ok(())
+    }
+
+    /// Updates the elevation gain for the selected date
+    ///
+    /// This function parses the input string as an integer and saves it.
+    /// Empty input clears the elevation (sets it to None).
+    pub fn update_elevation(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        elevation_input: String,
+    ) -> anyhow::Result<()> {
+        let elevation: Option<i32> = if elevation_input.is_empty() {
+            None
+        } else {
+            elevation_input.parse().ok()
+        };
+        let log = state.get_or_create_daily_log(state.selected_date);
+        log.elevation_gain = elevation;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
+        Ok(())
+    }
+
+    /// Prepares the edit miles screen with the current miles value
+    ///
+    /// Returns the current miles as a string, or empty string if not set.
+    pub fn start_edit_miles(state: &AppState) -> String {
+        if let Some(log) = state.get_daily_log(state.selected_date) {
+            if let Some(miles) = log.miles_covered {
+                return miles.to_string();
+            }
+        }
+        String::new()
+    }
+
+    /// Prepares the edit elevation screen with the current elevation value
+    ///
+    /// Returns the current elevation as a string, or empty string if not set.
+    pub fn start_edit_elevation(state: &AppState) -> String {
+        if let Some(log) = state.get_daily_log(state.selected_date) {
+            if let Some(elevation) = log.elevation_gain {
+                return elevation.to_string();
+            }
+        }
+        String::new()
+    }
+
+    /// Saves a new sokay entry to the daily log
+    ///
+    /// This function adds a sokay entry (unhealthy food choice) to the current day's log.
+    pub fn save_sokay_entry(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        sokay_text: String,
+    ) -> anyhow::Result<()> {
+        if !sokay_text.is_empty() {
+            let log = state.get_or_create_daily_log(state.selected_date);
+            log.add_sokay_entry(sokay_text);
+            tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+            let _ = file_manager.save_daily_log(log); // Backup to markdown
+        }
+        Ok(())
+    }
+
+    /// Updates an existing sokay entry
+    ///
+    /// This function finds the sokay entry by index and updates its text.
+    pub fn update_sokay_entry(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        sokay_index: usize,
+        new_text: String,
+    ) -> anyhow::Result<()> {
+        if !new_text.is_empty() {
+            if let Some(log) = state
+                .daily_logs
+                .iter_mut()
+                .find(|log| log.date == state.selected_date)
+            {
+                if sokay_index < log.sokay_entries.len() {
+                    log.sokay_entries[sokay_index] = new_text;
+                    tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                    let _ = file_manager.save_daily_log(log); // Backup to markdown
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Deletes a sokay entry from the daily log
+    ///
+    /// This function removes a sokay entry by index and updates the database.
+    pub fn delete_sokay_entry(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        sokay_index: usize,
+    ) -> anyhow::Result<()> {
+        if let Some(log) = state
+            .daily_logs
+            .iter_mut()
+            .find(|log| log.date == state.selected_date)
+        {
+            if sokay_index < log.sokay_entries.len() {
+                log.remove_sokay_entry(sokay_index);
+                tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                let _ = file_manager.save_daily_log(log); // Backup to markdown
+            }
+        }
+        Ok(())
+    }
+
+    /// Prepares the edit sokay screen with the current sokay entry text
+    ///
+    /// Returns the current sokay entry text, or None if index is invalid.
+    pub fn start_edit_sokay(state: &AppState, sokay_index: usize) -> Option<String> {
+        if let Some(log) = state.get_daily_log(state.selected_date) {
+            if sokay_index < log.sokay_entries.len() {
+                return Some(log.sokay_entries[sokay_index].clone());
+            }
+        }
+        None
+    }
+
+    /// Calculates cumulative sokay count up to and including the specified date
+    ///
+    /// This function sums all sokay entries from all logs dated up to the specified date.
+    pub fn calculate_cumulative_sokay(state: &AppState, up_to_date: chrono::NaiveDate) -> usize {
+        state
+            .daily_logs
+            .iter()
+            .filter(|log| log.date <= up_to_date)
+            .map(|log| log.sokay_entries.len())
+            .sum()
     }
 }

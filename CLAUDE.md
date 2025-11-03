@@ -1,16 +1,20 @@
-# Mountains Food Tracker
+# Mountains Training Log
 
-A terminal-based food logging application built with Rust and ratatui.
+A terminal-based training and nutrition tracking application built with Rust and ratatui.
 
 ## Project Overview
 
-This is a TUI (Terminal User Interface) application for tracking daily food intake and body measurements with the following features:
+This is a TUI (Terminal User Interface) application for tracking daily training activities, nutrition, and body measurements with the following features:
 
 - **Daily food logging** with date navigation
-- **Weight and waist size tracking** for each day
-- **Add, edit, and delete** food entries
+- **Body measurements** - weight and waist size tracking
+- **Activity tracking** - miles covered (walking/hiking/running) and elevation gain
+- **Sokay tracking** - accountability for unhealthy food choices with cumulative counting
+- **Daily notes** for observations and reflections
+- **Add, edit, and delete** entries for food and sokay items
 - **Cursor-enabled text input** with arrow key navigation
-- **Data persistence** to markdown files in `~/.mountains/`
+- **Dual persistence** - Turso Cloud database (primary) with markdown file backups
+- **Cloud sync** - automatic background syncing with Turso Cloud
 - **Clean, responsive interface** with keyboard shortcuts
 
 ## Technology Stack
@@ -20,6 +24,8 @@ This is a TUI (Terminal User Interface) application for tracking daily food inta
 - **crossterm** - Cross-platform terminal manipulation
 - **chrono** - Date/time handling
 - **serde** - Serialization for data persistence
+- **libsql** - Embedded database with Turso Cloud sync
+- **tokio** - Async runtime for database operations
 
 ## Key Controls
 
@@ -37,7 +43,19 @@ This is a TUI (Terminal User Interface) application for tracking daily food inta
 - `d` - Delete selected food item
 - `w` - Edit weight measurement
 - `s` - Edit waist measurement
+- `m` - Edit miles covered
+- `l` - Edit elevation gain
+- `c` - View/manage sokay entries
+- `n` - Edit daily notes
 - `Esc` - Back to home screen
+
+### Sokay View
+
+- `↑/↓` or `j/k` - Navigate between sokay entries
+- `a` - Add new sokay entry
+- `e` - Edit selected sokay entry
+- `d` - Delete selected sokay entry
+- `Esc` - Back to daily view
 
 ### Add/Edit Food Screens
 
@@ -50,39 +68,70 @@ This is a TUI (Terminal User Interface) application for tracking daily food inta
 
 ### Edit Measurements Screens
 
-- **Numeric input** with decimal point support
+- **Numeric input** (weight, waist, miles: decimal; elevation: integer only)
 - `←/→` - Move cursor within text
 - `Home/End` - Jump to beginning/end
 - `Backspace/Delete` - Remove characters
 - `Enter` - Save measurement
 - `Esc` - Cancel and return
 
+### Edit Notes Screen
+
+- **Multi-line text input** with cursor support
+- `←/→/↑/↓` - Move cursor
+- `Home/End` - Jump to beginning/end of line
+- `Ctrl+J` - Insert newline (Enter saves the notes)
+- `Enter` - Save notes
+- `Esc` - Cancel and return
+
 ## File Structure
 
 ```
 src/
-├── main.rs         # Main application logic and UI
-├── models.rs       # Data structures (FoodEntry, DailyLog, AppState)
-└── file_manager.rs # File I/O for markdown persistence
+├── main.rs              # Application entry point
+├── app.rs               # Main App struct and event loop
+├── models.rs            # Data structures (FoodEntry, DailyLog, AppState, AppScreen)
+├── db_manager.rs        # Database operations with Turso Cloud sync
+├── file_manager.rs      # Markdown file I/O for backups
+├── events/
+│   └── handlers.rs      # Event handlers (InputHandler, ActionHandler)
+└── ui/
+    ├── mod.rs           # UI module
+    ├── components.rs    # Reusable UI components
+    └── screens.rs       # Screen rendering functions
 
-Data files stored in: ~/.mountains/mtslog-MM.DD.YYYY.md
+Data storage:
+- Database: ~/.mountains/mountains.db (local libsql database)
+- Backups: ~/.mountains/mtslog-MM.DD.YYYY.md (markdown files)
+- Cloud: Synced to Turso Cloud every 60 seconds
 ```
 
 ### Example Data File Format:
 
 ```markdown
-# Food Log - January 09, 2025
+# Mountains Training Log - January 09, 2025
 
 ## Measurements
 
 - **Weight:** 175.5 lbs
 - **Waist:** 34.2 inches
+- **Miles:** 3.2 mi
+- **Elevation:** 450 ft
+- **Sokay:** 5 total
 
 ## Food
 
 - **Oatmeal** - with blueberries
 - **Chicken Salad**
 - **Green Tea**
+
+## Sokay
+
+- Coca Cola
+- Chocolate bar
+
+## Notes
+Feeling strong today. Good hike in the morning.
 ```
 
 ## Development Commands
@@ -99,21 +148,48 @@ Data files stored in: ~/.mountains/mtslog-MM.DD.YYYY.md
 
 ## Recent Improvements
 
+### Latest Session (Training Log Expansion)
+- ✅ **Miles covered tracking** - track walking/hiking/running distance with decimal precision
+- ✅ **Elevation gain tracking** - integer-only input for feet climbed
+- ✅ **Sokay tracking system** - accountability for unhealthy food choices
+- ✅ **Cumulative sokay counting** - running total across all days up to current date
+- ✅ **Sokay view screen** - dedicated interface for managing sokay entries
+- ✅ **Updated markdown title** - "Mountains Training Log" reflects expanded scope
+- ✅ **Database schema migration** - automatic column addition for backward compatibility
+- ✅ **Extended measurements display** - all tracking fields visible in daily view
+
+### Previous Sessions
+- ✅ Turso Cloud integration with local libsql database
+- ✅ Dual persistence (cloud database + markdown backups)
+- ✅ Automatic background sync every 60 seconds
+- ✅ Daily notes with multi-line text editing
 - ✅ Cursor visibility and text navigation in input fields
 - ✅ Edit and delete functionality for food entries
 - ✅ Proper ratatui padding instead of literal spaces
 - ✅ Clean list highlighting without arrow symbols
 - ✅ Weight and waist size tracking with dedicated input screens
-- ✅ Measurements display in daily view with current values
 - ✅ Keyboard shortcuts for quick measurement editing
+- ✅ Modular code structure (events, ui modules)
 
 ## Architecture Notes
 
-- **App struct** manages application state and UI rendering
-- **State management** through AppScreen enum for different views
-- **File persistence** using markdown format for human readability
-- **Input handling** with cursor position tracking for text editing
-- **Responsive UI** that adapts to terminal size
+- **App struct** - Main application coordinator managing state, database, and UI
+- **State management** - AppScreen enum for view routing (15 different screens)
+- **Dual persistence** - libsql database (primary) + markdown files (backup)
+- **Cloud sync** - Background sync with Turso Cloud, local-first approach
+- **Input handling** - Specialized handlers for text, numeric, integer, and multi-line input
+- **Modular design** - Separated concerns (models, events, ui, database, file management)
+- **Responsive UI** - Terminal size adaptation with ratatui layout system
+- **Data integrity** - Database transactions for atomic operations
+- **Error handling** - anyhow for ergonomic error propagation
+
+### Key Data Structures
+
+- **DailyLog** - Main data model with food_entries, measurements, sokay_entries, notes
+- **AppState** - Application state with daily_logs cache and current screen/selection
+- **InputHandler** - Cursor position tracking and input validation
+- **DbManager** - Async database operations with automatic sync
+- **FileManager** - Markdown serialization/deserialization for backups
 
 # important-instruction-reminders
 

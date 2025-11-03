@@ -51,6 +51,12 @@ pub struct DailyLog {
     pub weight: Option<f32>,
     /// Optional waist measurement in inches
     pub waist: Option<f32>,
+    /// Optional miles covered (walking/hiking/running)
+    pub miles_covered: Option<f32>,
+    /// Optional elevation gain in feet (integer)
+    pub elevation_gain: Option<i32>,
+    /// List of "sokay" entries (unhealthy food choices)
+    pub sokay_entries: Vec<String>,
     /// Optional daily notes or observations
     pub notes: Option<String>,
 }
@@ -66,6 +72,9 @@ impl DailyLog {
             food_entries: Vec::new(),
             weight: None,
             waist: None,
+            miles_covered: None,
+            elevation_gain: None,
+            sokay_entries: Vec::new(),
             notes: None,
         }
     }
@@ -85,6 +94,23 @@ impl DailyLog {
     pub fn remove_food_entry(&mut self, index: usize) {
         if index < self.food_entries.len() {
             self.food_entries.remove(index);
+        }
+    }
+
+    /// Adds a sokay entry to this daily log
+    ///
+    /// Sokay entries track unhealthy food choices for accountability.
+    pub fn add_sokay_entry(&mut self, entry: String) {
+        self.sokay_entries.push(entry);
+    }
+
+    /// Removes a sokay entry at the specified index
+    ///
+    /// This method includes bounds checking to prevent panics.
+    /// If the index is out of bounds, the method does nothing.
+    pub fn remove_sokay_entry(&mut self, index: usize) {
+        if index < self.sokay_entries.len() {
+            self.sokay_entries.remove(index);
         }
     }
 }
@@ -112,7 +138,17 @@ pub enum AppScreen {
     EditWeight,
     /// Editing waist measurement
     EditWaist,
-    /// Editing daily notes - not currently used
+    /// Editing miles covered
+    EditMiles,
+    /// Editing elevation gain
+    EditElevation,
+    /// Viewing sokay entries list
+    SokayView,
+    /// Adding a new sokay entry
+    AddSokay,
+    /// Editing an existing sokay entry (parameter is the index of the entry)
+    EditSokay(usize),
+    /// Editing daily notes
     EditNotes,
 }
 

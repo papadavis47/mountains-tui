@@ -34,6 +34,8 @@ pub struct App {
     list_state: ListState,
     /// Tracks which item is selected in the daily view food list
     food_list_state: ListState,
+    /// Tracks which item is selected in the sokay view list
+    sokay_list_state: ListState,
     /// Flag to indicate when the application should exit
     should_quit: bool,
     /// Timestamp of the last cloud sync operation
@@ -80,6 +82,7 @@ impl App {
             input_handler: InputHandler::new(),
             list_state: ListState::default(),
             food_list_state: ListState::default(),
+            sokay_list_state: ListState::default(),
             should_quit: false,
             last_sync_time: Instant::now(),
         })
@@ -130,6 +133,11 @@ impl App {
             AppScreen::EditFood(food_index) => self.handle_edit_food_input(key, food_index)?,
             AppScreen::EditWeight => self.handle_edit_weight_input(key)?,
             AppScreen::EditWaist => self.handle_edit_waist_input(key)?,
+            AppScreen::EditMiles => self.handle_edit_miles_input(key)?,
+            AppScreen::EditElevation => self.handle_edit_elevation_input(key)?,
+            AppScreen::SokayView => self.handle_sokay_view_input(key)?,
+            AppScreen::AddSokay => self.handle_add_sokay_input(key)?,
+            AppScreen::EditSokay(sokay_index) => self.handle_edit_sokay_input(key, sokay_index)?,
             AppScreen::EditNotes => self.handle_edit_notes_input_with_modifiers(key, modifiers)?,
             _ => self.handle_navigation_input(key)?,
         }
@@ -289,6 +297,129 @@ impl App {
         Ok(())
     }
 
+    /// Handles numeric input for editing miles covered.
+    fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Enter => {
+                ActionHandler::update_miles(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    self.input_handler.input_buffer.clone(),
+                )?;
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            _ => {
+                self.input_handler.handle_numeric_input(key);
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles integer input for editing elevation gain (no decimal points allowed).
+    fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Enter => {
+                ActionHandler::update_elevation(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    self.input_handler.input_buffer.clone(),
+                )?;
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            _ => {
+                self.input_handler.handle_integer_input(key);
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles keyboard input for the Sokay View screen (list of sokay entries).
+    fn handle_sokay_view_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Char('a') => {
+                self.state.current_screen = AppScreen::AddSokay;
+            }
+            KeyCode::Char('e') => {
+                self.handle_edit_sokay();
+            }
+            KeyCode::Char('d') => {
+                self.handle_delete_sokay()?;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.move_sokay_selection_down();
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.move_sokay_selection_up();
+            }
+            KeyCode::Esc => {
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Handles text input for adding a new sokay entry.
+    fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Enter => {
+                ActionHandler::save_sokay_entry(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    self.input_handler.input_buffer.clone(),
+                )?;
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::SokayView;
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::SokayView;
+            }
+            _ => {
+                self.input_handler.handle_text_input(key);
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles text input for editing an existing sokay entry.
+    fn handle_edit_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
+        match key {
+            KeyCode::Enter => {
+                ActionHandler::update_sokay_entry(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    sokay_index,
+                    self.input_handler.input_buffer.clone(),
+                )?;
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::SokayView;
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::SokayView;
+            }
+            _ => {
+                self.input_handler.handle_text_input(key);
+            }
+        }
+        Ok(())
+    }
+
     /// This method handles keyboard input for the Home and Daily View screens,
     /// including navigation (up/down), actions (add, edit, delete), and
     /// screen transitions.
@@ -356,6 +487,24 @@ impl App {
                     self.handle_edit_notes();
                 }
             }
+            KeyCode::Char('m') => {
+                // Edit miles (only available in daily view)
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.handle_edit_miles();
+                }
+            }
+            KeyCode::Char('l') => {
+                // Edit elevation (only available in daily view)
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.handle_edit_elevation();
+                }
+            }
+            KeyCode::Char('c') => {
+                // View sokay entries (only available in daily view)
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.handle_sokay_view();
+                }
+            }
             _ => {
                 // Ignore other keys
             }
@@ -413,6 +562,41 @@ impl App {
                     self.input_handler.cursor_position,
                 );
             }
+            AppScreen::EditMiles => {
+                screens::render_edit_miles_screen(
+                    f,
+                    self.state.selected_date,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
+            }
+            AppScreen::EditElevation => {
+                screens::render_edit_elevation_screen(
+                    f,
+                    self.state.selected_date,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
+            }
+            AppScreen::SokayView => {
+                screens::render_sokay_view_screen(f, &self.state, &mut self.sokay_list_state);
+            }
+            AppScreen::AddSokay => {
+                screens::render_add_sokay_screen(
+                    f,
+                    self.state.selected_date,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
+            }
+            AppScreen::EditSokay(_) => {
+                screens::render_edit_sokay_screen(
+                    f,
+                    self.state.selected_date,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
+            }
             _ => {
                 // Default to home screen for any unhandled screen types
                 screens::render_home_screen(f, &self.state, &mut self.list_state);
@@ -460,6 +644,28 @@ impl App {
                 log.food_entries.len(),
             );
             self.food_list_state.select(new_selection);
+        }
+    }
+
+    /// Moves the selection down in the sokay view list
+    fn move_sokay_selection_down(&mut self) {
+        if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+            let new_selection = NavigationHandler::move_selection_down(
+                self.sokay_list_state.selected(),
+                log.sokay_entries.len(),
+            );
+            self.sokay_list_state.select(new_selection);
+        }
+    }
+
+    /// Moves the selection up in the sokay view list
+    fn move_sokay_selection_up(&mut self) {
+        if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+            let new_selection = NavigationHandler::move_selection_up(
+                self.sokay_list_state.selected(),
+                log.sokay_entries.len(),
+            );
+            self.sokay_list_state.select(new_selection);
         }
     }
 
@@ -547,6 +753,64 @@ impl App {
         self.state.current_screen = AppScreen::EditNotes;
     }
 
+    /// Pre-fills the input buffer with the current miles value if it exists.
+    fn handle_edit_miles(&mut self) {
+        let current_miles = ActionHandler::start_edit_miles(&self.state);
+        self.input_handler.set_input(current_miles);
+        self.state.current_screen = AppScreen::EditMiles;
+    }
+
+    /// Pre-fills the input buffer with the current elevation value if it exists.
+    fn handle_edit_elevation(&mut self) {
+        let current_elevation = ActionHandler::start_edit_elevation(&self.state);
+        self.input_handler.set_input(current_elevation);
+        self.state.current_screen = AppScreen::EditElevation;
+    }
+
+    /// Switches to the Sokay View screen.
+    fn handle_sokay_view(&mut self) {
+        self.state.current_screen = AppScreen::SokayView;
+        self.sokay_list_state.select(None); // Reset selection
+    }
+
+    /// Initiates editing of a sokay entry.
+    fn handle_edit_sokay(&mut self) {
+        if let Some(selected_index) = self.sokay_list_state.selected() {
+            if let Some(current_text) =
+                ActionHandler::start_edit_sokay(&self.state, selected_index)
+            {
+                self.input_handler.set_input(current_text);
+                self.state.current_screen = AppScreen::EditSokay(selected_index);
+            }
+        }
+    }
+
+    /// Deletes a sokay entry.
+    fn handle_delete_sokay(&mut self) -> Result<()> {
+        if let Some(selected_index) = self.sokay_list_state.selected() {
+            ActionHandler::delete_sokay_entry(
+                &mut self.state,
+                &mut self.db_manager,
+                &self.file_manager,
+                selected_index,
+            )?;
+
+            // Update selection after deletion
+            if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+                if log.sokay_entries.is_empty() {
+                    // No items left - clear selection
+                    self.sokay_list_state.select(None);
+                } else if selected_index >= log.sokay_entries.len() {
+                    // Selected index is now out of bounds - select the last item
+                    self.sokay_list_state
+                        .select(Some(log.sokay_entries.len() - 1));
+                }
+                // If the selected index is still valid, keep the current selection
+            }
+        }
+        Ok(())
+    }
+
     /// Checks if enough time has passed since last sync and syncs if appropriate
     ///
     /// This method:
@@ -589,6 +853,10 @@ impl App {
                 | AppScreen::EditFood(_)
                 | AppScreen::EditWeight
                 | AppScreen::EditWaist
+                | AppScreen::EditMiles
+                | AppScreen::EditElevation
+                | AppScreen::AddSokay
+                | AppScreen::EditSokay(_)
                 | AppScreen::EditNotes
         )
     }

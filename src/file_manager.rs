@@ -179,18 +179,36 @@ impl FileManager {
 
         // Add the main title
         content.push_str(&format!(
-            "# Food Log - {}\n\n",
+            "# Mountains Training Log - {}\n\n",
             log.date.format("%B %d, %Y")
         ));
 
         // Add measurements section if any measurements exist
-        if log.weight.is_some() || log.waist.is_some() {
+        if log.weight.is_some()
+            || log.waist.is_some()
+            || log.miles_covered.is_some()
+            || log.elevation_gain.is_some()
+            || !log.sokay_entries.is_empty()
+        {
             content.push_str("## Measurements\n");
+            // Body measurements
             if let Some(weight) = log.weight {
                 content.push_str(&format!("- **Weight:** {} lbs\n", weight));
             }
             if let Some(waist) = log.waist {
                 content.push_str(&format!("- **Waist:** {} inches\n", waist));
+            }
+            // Activity measurements
+            if let Some(miles) = log.miles_covered {
+                content.push_str(&format!("- **Miles:** {} mi\n", miles));
+            }
+            if let Some(elevation) = log.elevation_gain {
+                content.push_str(&format!("- **Elevation:** {} ft\n", elevation));
+            }
+            // Sokay cumulative count (Note: this is just for display in markdown,
+            // actual calculation happens elsewhere)
+            if !log.sokay_entries.is_empty() {
+                content.push_str(&format!("- **Sokay:** {} items\n", log.sokay_entries.len()));
             }
             content.push('\n'); // Add blank line after section
         }
@@ -204,6 +222,15 @@ impl FileManager {
                     content.push_str(&format!(" - {}", notes));
                 }
                 content.push('\n');
+            }
+            content.push('\n'); // Add blank line after section
+        }
+
+        // Add sokay entries section if any entries exist
+        if !log.sokay_entries.is_empty() {
+            content.push_str("## Sokay\n");
+            for entry in &log.sokay_entries {
+                content.push_str(&format!("- {}\n", entry));
             }
             content.push('\n'); // Add blank line after section
         }
@@ -233,6 +260,7 @@ impl FileManager {
         // State tracking for which section we're currently parsing
         let mut in_measurements = false;
         let mut in_food = false;
+        let mut in_sokay = false;
         let mut in_notes = false;
         let mut notes_content = String::new();
 
@@ -243,19 +271,28 @@ impl FileManager {
             if trimmed.starts_with("## Measurements") {
                 in_measurements = true;
                 in_food = false;
+                in_sokay = false;
                 in_notes = false;
             } else if trimmed.starts_with("## Food") {
                 in_measurements = false;
                 in_food = true;
+                in_sokay = false;
+                in_notes = false;
+            } else if trimmed.starts_with("## Sokay") {
+                in_measurements = false;
+                in_food = false;
+                in_sokay = true;
                 in_notes = false;
             } else if trimmed.starts_with("## Notes") {
                 in_measurements = false;
                 in_food = false;
+                in_sokay = false;
                 in_notes = true;
             } else if trimmed.starts_with("##") || trimmed.starts_with("#") {
                 // Any other section header resets our state
                 in_measurements = false;
                 in_food = false;
+                in_sokay = false;
                 in_notes = false;
             } else if in_measurements && trimmed.starts_with("- **Weight:**") {
                 // Parse weight measurement
@@ -276,6 +313,31 @@ impl FileManager {
                     if let Ok(waist) = waist_str.trim().parse::<f32>() {
                         log.waist = Some(waist);
                     }
+                }
+            } else if in_measurements && trimmed.starts_with("- **Miles:**") {
+                // Parse miles covered
+                if let Some(miles_str) = trimmed
+                    .strip_prefix("- **Miles:**")
+                    .and_then(|s| s.strip_suffix(" mi"))
+                {
+                    if let Ok(miles) = miles_str.trim().parse::<f32>() {
+                        log.miles_covered = Some(miles);
+                    }
+                }
+            } else if in_measurements && trimmed.starts_with("- **Elevation:**") {
+                // Parse elevation gain (integer)
+                if let Some(elevation_str) = trimmed
+                    .strip_prefix("- **Elevation:**")
+                    .and_then(|s| s.strip_suffix(" ft"))
+                {
+                    if let Ok(elevation) = elevation_str.trim().parse::<i32>() {
+                        log.elevation_gain = Some(elevation);
+                    }
+                }
+            } else if in_sokay && trimmed.starts_with("- ") {
+                // Parse sokay entry: "- entry text"
+                if let Some(entry_text) = trimmed.strip_prefix("- ") {
+                    log.add_sokay_entry(entry_text.to_string());
                 }
             } else if in_food && trimmed.starts_with("- **") {
                 // Parse food entry: "- **Food Name** - notes"

@@ -128,6 +128,41 @@ impl DbManager {
             .await
             .context("Failed to create index on food_entries")?;
 
+        // Run migrations to add new columns to daily_logs table
+        // SQLite allows ALTER TABLE ADD COLUMN if the column doesn't exist
+        let _ = self
+            .conn
+            .execute("ALTER TABLE daily_logs ADD COLUMN miles_covered REAL", ())
+            .await; // Ignore error if column already exists
+
+        let _ = self
+            .conn
+            .execute("ALTER TABLE daily_logs ADD COLUMN elevation_gain INTEGER", ())
+            .await; // Ignore error if column already exists
+
+        // Create sokay_entries table
+        self.conn
+            .execute(
+                "CREATE TABLE IF NOT EXISTS sokay_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    entry_text TEXT NOT NULL,
+                    FOREIGN KEY (date) REFERENCES daily_logs(date) ON DELETE CASCADE
+                )",
+                (),
+            )
+            .await
+            .context("Failed to create sokay_entries table")?;
+
+        // Create index on date for faster queries
+        self.conn
+            .execute(
+                "CREATE INDEX IF NOT EXISTS idx_sokay_entries_date ON sokay_entries(date)",
+                (),
+            )
+            .await
+            .context("Failed to create index on sokay_entries")?;
+
         Ok(())
     }
 
@@ -147,11 +182,13 @@ impl DbManager {
 
         // Upsert daily_logs record
         tx.execute(
-            "INSERT OR REPLACE INTO daily_logs (date, weight, waist, notes) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT OR REPLACE INTO daily_logs (date, weight, waist, miles_covered, elevation_gain, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             libsql::params![
                 date_str.clone(),
                 log.weight,
                 log.waist,
+                log.miles_covered,
+                log.elevation_gain,
                 log.notes.as_ref().map(|s| s.as_str()),
             ],
         )
@@ -177,6 +214,24 @@ impl DbManager {
             .context("Failed to insert food entry")?;
         }
 
+        // Delete existing sokay entries for this date
+        tx.execute("DELETE FROM sokay_entries WHERE date = ?1", [date_str.as_str()])
+            .await
+            .context("Failed to delete old sokay entries")?;
+
+        // Insert all sokay entries
+        for entry in &log.sokay_entries {
+            tx.execute(
+                "INSERT INTO sokay_entries (date, entry_text) VALUES (?1, ?2)",
+                libsql::params![
+                    date_str.clone(),
+                    entry.clone(),
+                ],
+            )
+            .await
+            .context("Failed to insert sokay entry")?;
+        }
+
         // Commit the transaction
         tx.commit().await.context("Failed to commit transaction")?;
 
@@ -197,7 +252,7 @@ impl DbManager {
         let mut rows = self
             .conn
             .query(
-                "SELECT date, weight, waist, notes FROM daily_logs WHERE date = ?1",
+                "SELECT date, weight, waist, miles_covered, elevation_gain, notes FROM daily_logs WHERE date = ?1",
                 [date_str.as_str()],
             )
             .await
@@ -212,7 +267,9 @@ impl DbManager {
         // Parse the daily log data (libsql uses f64 for REAL type)
         let weight: Option<f32> = row.get::<Option<f64>>(1)?.map(|v| v as f32);
         let waist: Option<f32> = row.get::<Option<f64>>(2)?.map(|v| v as f32);
-        let notes: Option<String> = row.get(3)?;
+        let miles_covered: Option<f32> = row.get::<Option<f64>>(3)?.map(|v| v as f32);
+        let elevation_gain: Option<i32> = row.get::<Option<i64>>(4)?.map(|v| v as i32);
+        let notes: Option<String> = row.get(5)?;
 
         // Query food entries for this date
         let mut food_rows = self
@@ -231,11 +288,30 @@ impl DbManager {
             food_entries.push(FoodEntry::new(name, food_notes));
         }
 
+        // Query sokay entries for this date
+        let mut sokay_rows = self
+            .conn
+            .query(
+                "SELECT entry_text FROM sokay_entries WHERE date = ?1 ORDER BY id",
+                [date_str.as_str()],
+            )
+            .await
+            .context("Failed to query sokay entries")?;
+
+        let mut sokay_entries = Vec::new();
+        while let Some(sokay_row) = sokay_rows.next().await? {
+            let entry_text: String = sokay_row.get(0)?;
+            sokay_entries.push(entry_text);
+        }
+
         Ok(Some(DailyLog {
             date,
             food_entries,
             weight,
             waist,
+            miles_covered,
+            elevation_gain,
+            sokay_entries,
             notes,
         }))
     }
@@ -248,7 +324,7 @@ impl DbManager {
         let mut rows = self
             .conn
             .query(
-                "SELECT date, weight, waist, notes FROM daily_logs ORDER BY date DESC",
+                "SELECT date, weight, waist, miles_covered, elevation_gain, notes FROM daily_logs ORDER BY date DESC",
                 (),
             )
             .await
@@ -263,7 +339,9 @@ impl DbManager {
 
             let weight: Option<f32> = row.get::<Option<f64>>(1)?.map(|v| v as f32);
             let waist: Option<f32> = row.get::<Option<f64>>(2)?.map(|v| v as f32);
-            let notes: Option<String> = row.get(3)?;
+            let miles_covered: Option<f32> = row.get::<Option<f64>>(3)?.map(|v| v as f32);
+            let elevation_gain: Option<i32> = row.get::<Option<i64>>(4)?.map(|v| v as i32);
+            let notes: Option<String> = row.get(5)?;
 
             // Query food entries for this date
             let mut food_rows = self
@@ -282,11 +360,30 @@ impl DbManager {
                 food_entries.push(FoodEntry::new(name, food_notes));
             }
 
+            // Query sokay entries for this date
+            let mut sokay_rows = self
+                .conn
+                .query(
+                    "SELECT entry_text FROM sokay_entries WHERE date = ?1 ORDER BY id",
+                    [date_str.as_str()],
+                )
+                .await
+                .context("Failed to query sokay entries")?;
+
+            let mut sokay_entries = Vec::new();
+            while let Some(sokay_row) = sokay_rows.next().await? {
+                let entry_text: String = sokay_row.get(0)?;
+                sokay_entries.push(entry_text);
+            }
+
             daily_logs.push(DailyLog {
                 date,
                 food_entries,
                 weight,
                 waist,
+                miles_covered,
+                elevation_gain,
+                sokay_entries,
                 notes,
             });
         }

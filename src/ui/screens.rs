@@ -127,13 +127,13 @@ pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state
     render_help(
         f,
         chunks[4],
-        "q: quit | a: add | e: edit | d: delete | w: weight | s: waist | n: notes | ↑/↓: navigate | Esc: back",
+        "q: quit | a: add food | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | c: sokay | n: notes | ↑/↓: navigate | Esc: back",
     );
 }
 
 /// Renders the measurements display section
 ///
-/// Shows current weight and waist measurements for the selected date.
+/// Shows current weight, waist, miles, elevation, and cumulative sokay count for the selected date.
 /// If no measurements are recorded, shows "Not set" placeholders.
 fn render_measurements_section(
     f: &mut Frame,
@@ -144,21 +144,53 @@ fn render_measurements_section(
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    // Format the measurements text
+    // Calculate cumulative sokay count up to selected date
+    let cumulative_sokay = crate::events::handlers::ActionHandler::calculate_cumulative_sokay(
+        &crate::models::AppState {
+            current_screen: crate::models::AppScreen::DailyView,
+            selected_date,
+            daily_logs: daily_logs.to_vec(),
+            selected_index: 0,
+        },
+        selected_date,
+    );
+
+    // Format the measurements text - organize by body then activity measurements
     let measurements_text = if let Some(log) = log {
+        // Body measurements
         let weight_str = if let Some(weight) = log.weight {
             format!("Weight: {} lbs", weight)
         } else {
             "Weight: Not set".to_string()
         };
         let waist_str = if let Some(waist) = log.waist {
-            format!("Waist: {} inches", waist)
+            format!("Waist: {} in", waist)
         } else {
             "Waist: Not set".to_string()
         };
-        format!("{} | {}", weight_str, waist_str)
+
+        // Activity measurements
+        let miles_str = if let Some(miles) = log.miles_covered {
+            format!("Miles: {} mi", miles)
+        } else {
+            "Miles: Not set".to_string()
+        };
+        let elevation_str = if let Some(elevation) = log.elevation_gain {
+            format!("Elevation: {} ft", elevation)
+        } else {
+            "Elevation: Not set".to_string()
+        };
+
+        // Sokay count (cumulative)
+        let sokay_str = if cumulative_sokay > 0 {
+            format!("Sokay: {} total", cumulative_sokay)
+        } else {
+            "Sokay: 0 total".to_string()
+        };
+
+        format!("{} | {} | {} | {} | {}", weight_str, waist_str, miles_str, elevation_str, sokay_str)
     } else {
-        "Weight: Not set | Waist: Not set".to_string()
+        "Weight: Not set | Waist: Not set | Miles: Not set | Elevation: Not set | Sokay: 0 total".to_string()
     };
 
     // Create and render the measurements widget
@@ -495,4 +527,165 @@ fn calculate_multiline_cursor_position(
     let cursor_y = area.y + 1 + line as u16;
 
     (cursor_x, cursor_y)
+}
+
+/// Renders the edit miles screen
+///
+/// Allows users to input miles covered (numeric input with decimal).
+pub fn render_edit_miles_screen(
+    f: &mut Frame,
+    selected_date: NaiveDate,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = format!("Edit Miles - {}", selected_date.format("%B %d, %Y"));
+    render_title(f, chunks[0], &title);
+
+    render_input_field(f, chunks[1], "Miles Covered", input_buffer, cursor_position);
+
+    render_help(
+        f,
+        chunks[2],
+        "Enter miles (walking/hiking/running, numbers and decimal) | Enter: save | Esc: cancel",
+    );
+}
+
+/// Renders the edit elevation screen
+///
+/// Allows users to input elevation gain in feet (integer input only).
+pub fn render_edit_elevation_screen(
+    f: &mut Frame,
+    selected_date: NaiveDate,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = format!("Edit Elevation - {}", selected_date.format("%B %d, %Y"));
+    render_title(f, chunks[0], &title);
+
+    render_input_field(
+        f,
+        chunks[1],
+        "Elevation Gain (feet)",
+        input_buffer,
+        cursor_position,
+    );
+
+    render_help(
+        f,
+        chunks[2],
+        "Enter elevation gain in feet (integers only) | Enter: save | Esc: cancel",
+    );
+}
+
+/// Renders the sokay view screen showing all sokay entries for a date
+///
+/// Displays a list of sokay entries (unhealthy food choices) with options to add, edit, or delete.
+pub fn render_sokay_view_screen(f: &mut Frame, state: &AppState, sokay_list_state: &mut ListState) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = format!(
+        "Sokay Entries - {}",
+        state.selected_date.format("%B %d, %Y")
+    );
+    render_title(f, chunks[0], &title);
+
+    // Find the log for the selected date
+    let log = state
+        .daily_logs
+        .iter()
+        .find(|log| log.date == state.selected_date);
+
+    // Create the list items
+    let items: Vec<ListItem> = if let Some(log) = log {
+        if log.sokay_entries.is_empty() {
+            vec![ListItem::new(
+                "No sokay entries yet. Press 'a' to add one.",
+            )]
+        } else {
+            log.sokay_entries
+                .iter()
+                .enumerate()
+                .map(|(i, entry)| {
+                    let display = format!("{}. {}", i + 1, entry);
+                    ListItem::new(display)
+                })
+                .collect()
+        }
+    } else {
+        vec![ListItem::new("No sokay entries yet. Press 'a' to add one.")]
+    };
+
+    // Create the list widget
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Sokay (Unhealthy Choices)")
+                .padding(ratatui::widgets::Padding::horizontal(1)),
+        )
+        .highlight_style(create_highlight_style());
+
+    f.render_stateful_widget(list, chunks[1], sokay_list_state);
+
+    render_help(
+        f,
+        chunks[2],
+        "a: add | e: edit | d: delete | ↑/↓: navigate | Esc: back to daily view",
+    );
+}
+
+/// Renders the add sokay screen
+///
+/// Allows users to add a new sokay entry (text input).
+pub fn render_add_sokay_screen(
+    f: &mut Frame,
+    selected_date: NaiveDate,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = format!("Add Sokay Entry - {}", selected_date.format("%B %d, %Y"));
+    render_title(f, chunks[0], &title);
+
+    render_input_field(
+        f,
+        chunks[1],
+        "Sokay Entry (e.g., 'Coca Cola', 'chocolate bar')",
+        input_buffer,
+        cursor_position,
+    );
+
+    render_help(
+        f,
+        chunks[2],
+        "Enter sokay item description | Enter: save | Esc: cancel",
+    );
+}
+
+/// Renders the edit sokay screen
+///
+/// Allows users to edit an existing sokay entry (text input).
+pub fn render_edit_sokay_screen(
+    f: &mut Frame,
+    selected_date: NaiveDate,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = format!("Edit Sokay Entry - {}", selected_date.format("%B %d, %Y"));
+    render_title(f, chunks[0], &title);
+
+    render_input_field(f, chunks[1], "Sokay Entry", input_buffer, cursor_position);
+
+    render_help(
+        f,
+        chunks[2],
+        "Edit sokay item description | Enter: save | Esc: cancel",
+    );
 }
