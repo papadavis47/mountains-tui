@@ -615,6 +615,40 @@ impl ActionHandler {
         String::new()
     }
 
+    /// Updates the strength & mobility exercises for the selected date
+    ///
+    /// This function saves the strength & mobility text to the daily log.
+    /// Empty input clears the strength & mobility field (sets it to None).
+    pub fn update_strength_mobility(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        sm_input: String,
+    ) -> anyhow::Result<()> {
+        let strength_mobility: Option<String> = if sm_input.trim().is_empty() {
+            None
+        } else {
+            Some(sm_input)
+        };
+        let log = state.get_or_create_daily_log(state.selected_date);
+        log.strength_mobility = strength_mobility;
+        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        let _ = file_manager.save_daily_log(log); // Backup to markdown
+        Ok(())
+    }
+
+    /// Prepares the edit strength & mobility screen with the current value
+    ///
+    /// Returns the current strength & mobility text as a string, or empty string if not set.
+    pub fn start_edit_strength_mobility(state: &AppState) -> String {
+        if let Some(log) = state.get_daily_log(state.selected_date) {
+            if let Some(sm) = &log.strength_mobility {
+                return sm.clone();
+            }
+        }
+        String::new()
+    }
+
     /// Updates the daily notes for the selected date
     ///
     /// This function saves the notes text to the daily log.

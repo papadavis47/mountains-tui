@@ -88,14 +88,15 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
 /// - List of food entries
 /// - Help text with available actions
 pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state: &mut ListState) {
-    // Create a more complex layout that includes space for notes
+    // Create a more complex layout that includes space for strength & mobility and notes
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
             Constraint::Length(3), // Title
             Constraint::Length(4), // Measurements
-            Constraint::Min(6),    // Food list (reduced minimum)
+            Constraint::Min(5),    // Food list (reduced minimum)
+            Constraint::Length(4), // Strength & Mobility section
             Constraint::Length(4), // Notes section
             Constraint::Length(3), // Help
         ])
@@ -120,14 +121,17 @@ pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state
         food_list_state,
     );
 
-    // Render notes section
-    render_notes_section(f, chunks[3], state.selected_date, &state.daily_logs);
+    // Render strength & mobility section
+    render_strength_mobility_section(f, chunks[3], state.selected_date, &state.daily_logs);
 
-    // Render help text with all available actions (including notes)
+    // Render notes section
+    render_notes_section(f, chunks[4], state.selected_date, &state.daily_logs);
+
+    // Render help text with all available actions (including strength & mobility and notes)
     render_help(
         f,
-        chunks[4],
-        "q: quit | a: add food | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | c: sokay | n: notes | ↑/↓: navigate | Esc: back",
+        chunks[5],
+        "q: quit | a: add food | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | c: sokay | t: training | n: notes | ↑/↓: navigate | Esc: back",
     );
 }
 
@@ -150,7 +154,6 @@ fn render_measurements_section(
             current_screen: crate::models::AppScreen::DailyView,
             selected_date,
             daily_logs: daily_logs.to_vec(),
-            selected_index: 0,
         },
         selected_date,
     );
@@ -248,6 +251,42 @@ fn render_food_list_section(
         )
         .highlight_style(create_highlight_style());
     f.render_stateful_widget(list, area, food_list_state);
+}
+
+/// Renders the strength & mobility display section
+///
+/// Shows current strength and mobility exercises for the selected date, or a message indicating
+/// that no exercises have been recorded yet.
+fn render_strength_mobility_section(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    selected_date: NaiveDate,
+    daily_logs: &[DailyLog],
+) {
+    // Find the log for the selected date
+    let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    // Format the strength & mobility text
+    let sm_text = if let Some(log) = log {
+        if let Some(sm) = &log.strength_mobility {
+            if sm.trim().is_empty() {
+                "No exercises recorded yet. Press 't' to add training info.".to_string()
+            } else {
+                sm.clone()
+            }
+        } else {
+            "No exercises recorded yet. Press 't' to add training info.".to_string()
+        }
+    } else {
+        "No exercises recorded yet. Press 't' to add training info.".to_string()
+    };
+
+    // Create and render the strength & mobility widget
+    let sm_widget = Paragraph::new(sm_text)
+        .style(Style::default().fg(Color::Cyan))
+        .block(Block::default().borders(Borders::ALL).title("Strength & Mobility"))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(sm_widget, area);
 }
 
 /// Renders the notes display section
@@ -414,6 +453,45 @@ fn render_input_field(
     // Set the terminal cursor position
     let (cursor_x, cursor_y) = calculate_cursor_position(area, cursor_position);
     f.set_cursor_position((cursor_x, cursor_y));
+}
+
+/// Renders the edit strength & mobility screen
+///
+/// Allows users to write multi-line text about their strength and mobility exercises.
+/// This screen provides a larger text area for describing training activities.
+pub fn render_edit_strength_mobility_screen(
+    f: &mut Frame,
+    selected_date: NaiveDate,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    // Create a layout with more space for the strength & mobility area
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(3), // Title
+            Constraint::Min(8),    // Strength & Mobility area (larger than normal input)
+            Constraint::Length(4), // Help text (slightly larger for multi-line help)
+        ])
+        .split(f.area());
+
+    let title = format!("Edit Strength & Mobility - {}", selected_date.format("%B %d, %Y"));
+    render_title(f, chunks[0], &title);
+
+    // Render a larger text area for strength & mobility exercises
+    render_multiline_input_field(f, chunks[1], "Strength & Mobility Exercises", input_buffer, cursor_position);
+
+    // Provide more detailed help for strength & mobility editing
+    let help_text = "Record your strength and mobility exercises for the day\n\
+                     Ctrl+J: New line | Enter: Save | Esc: Cancel\n\
+                     Use arrow keys to navigate, Home/End to jump";
+
+    let help_widget = Paragraph::new(help_text)
+        .style(create_help_style())
+        .block(Block::default().borders(Borders::ALL).title("Help"))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+    f.render_widget(help_widget, chunks[2]);
 }
 
 /// Renders the edit notes screen

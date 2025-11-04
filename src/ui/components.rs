@@ -56,26 +56,6 @@ pub fn create_standard_layout(area: Rect) -> std::rc::Rc<[Rect]> {
         .split(area)
 }
 
-/// Creates a four-section layout used by screens with measurements
-///
-/// Used by the daily view screen which needs:
-/// - Title
-/// - Measurements display
-/// - Main content
-/// - Help text
-pub fn create_daily_view_layout(area: Rect) -> std::rc::Rc<[Rect]> {
-    Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Length(3), // Title
-            Constraint::Length(4), // Measurements
-            Constraint::Min(0),    // Food list
-            Constraint::Length(3), // Help
-        ])
-        .split(area)
-}
-
 /// Renders a title widget with the application's standard styling
 ///
 /// This function takes a title string and renders it in a bordered box

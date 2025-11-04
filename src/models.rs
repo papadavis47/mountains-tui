@@ -57,6 +57,8 @@ pub struct DailyLog {
     pub elevation_gain: Option<i32>,
     /// List of "sokay" entries (unhealthy food choices)
     pub sokay_entries: Vec<String>,
+    /// Optional strength and mobility exercises for the day
+    pub strength_mobility: Option<String>,
     /// Optional daily notes or observations
     pub notes: Option<String>,
 }
@@ -75,6 +77,7 @@ impl DailyLog {
             miles_covered: None,
             elevation_gain: None,
             sokay_entries: Vec::new(),
+            strength_mobility: None,
             notes: None,
         }
     }
@@ -132,8 +135,6 @@ pub enum AppScreen {
     AddFood,
     /// Editing an existing food entry (parameter is the index of the entry)
     EditFood(usize),
-    /// Adding measurements (weight/waist) - not currently used
-    AddMeasurements,
     /// Editing weight measurement
     EditWeight,
     /// Editing waist measurement
@@ -148,6 +149,8 @@ pub enum AppScreen {
     AddSokay,
     /// Editing an existing sokay entry (parameter is the index of the entry)
     EditSokay(usize),
+    /// Editing strength and mobility exercises
+    EditStrengthMobility,
     /// Editing daily notes
     EditNotes,
 }
@@ -169,8 +172,6 @@ pub struct AppState {
     pub selected_date: NaiveDate,
     /// All daily logs loaded from disk, sorted newest first
     pub daily_logs: Vec<DailyLog>,
-    /// Index of the currently selected item in lists (used by UI)
-    pub selected_index: usize,
 }
 
 impl AppState {
@@ -183,7 +184,6 @@ impl AppState {
             current_screen: AppScreen::Home,
             selected_date: chrono::Local::now().date_naive(),
             daily_logs: Vec::new(),
-            selected_index: 0,
         }
     }
 

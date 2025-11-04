@@ -138,6 +138,7 @@ impl App {
             AppScreen::SokayView => self.handle_sokay_view_input(key)?,
             AppScreen::AddSokay => self.handle_add_sokay_input(key)?,
             AppScreen::EditSokay(sokay_index) => self.handle_edit_sokay_input(key, sokay_index)?,
+            AppScreen::EditStrengthMobility => self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers)?,
             AppScreen::EditNotes => self.handle_edit_notes_input_with_modifiers(key, modifiers)?,
             _ => self.handle_navigation_input(key)?,
         }
@@ -248,6 +249,48 @@ impl App {
             }
             _ => {
                 self.input_handler.handle_numeric_input(key);
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles input for the Edit Strength & Mobility screen with modifier support
+    ///
+    /// This method processes multi-line text input for editing strength & mobility exercises.
+    /// It supports special key combinations like Ctrl+J for newlines.
+    fn handle_edit_strength_mobility_input_with_modifiers(
+        &mut self,
+        key: KeyCode,
+        modifiers: crossterm::event::KeyModifiers,
+    ) -> Result<()> {
+        // First check for special key combinations
+        if self
+            .input_handler
+            .handle_multiline_special_keys(key, modifiers)
+        {
+            return Ok(());
+        }
+
+        match key {
+            KeyCode::Enter => {
+                // Save the strength & mobility and return to daily view
+                ActionHandler::update_strength_mobility(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    self.input_handler.input_buffer.clone(),
+                )?;
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            KeyCode::Esc => {
+                // Cancel strength & mobility editing
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            _ => {
+                // Handle multi-line text editing
+                self.input_handler.handle_multiline_text_input(key);
             }
         }
         Ok(())
@@ -481,6 +524,12 @@ impl App {
                     self.handle_edit_waist();
                 }
             }
+            KeyCode::Char('t') => {
+                // Edit strength & mobility (only available in daily view)
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.handle_edit_strength_mobility();
+                }
+            }
             KeyCode::Char('n') => {
                 // Edit notes (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
@@ -554,6 +603,14 @@ impl App {
                     self.input_handler.cursor_position,
                 );
             }
+            AppScreen::EditStrengthMobility => {
+                screens::render_edit_strength_mobility_screen(
+                    f,
+                    self.state.selected_date,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
+            }
             AppScreen::EditNotes => {
                 screens::render_edit_notes_screen(
                     f,
@@ -596,10 +653,6 @@ impl App {
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
-            }
-            _ => {
-                // Default to home screen for any unhandled screen types
-                screens::render_home_screen(f, &self.state, &mut self.list_state);
             }
         }
     }
@@ -714,7 +767,12 @@ impl App {
     /// This method also handles updating the selection state after deletion.
     fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
-            ActionHandler::delete_food_entry(&mut self.state, &mut self.db_manager, &self.file_manager, selected_index)?;
+            ActionHandler::delete_food_entry(
+                &mut self.state,
+                &mut self.db_manager,
+                &self.file_manager,
+                selected_index,
+            )?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -744,6 +802,13 @@ impl App {
         let current_waist = ActionHandler::start_edit_waist(&self.state);
         self.input_handler.set_input(current_waist);
         self.state.current_screen = AppScreen::EditWaist;
+    }
+
+    /// Pre-fills the input buffer with the current strength & mobility value if it exists.
+    fn handle_edit_strength_mobility(&mut self) {
+        let current_sm = ActionHandler::start_edit_strength_mobility(&self.state);
+        self.input_handler.set_input(current_sm);
+        self.state.current_screen = AppScreen::EditStrengthMobility;
     }
 
     /// Pre-fills the input buffer with the current notes value if it exists.
@@ -776,8 +841,7 @@ impl App {
     /// Initiates editing of a sokay entry.
     fn handle_edit_sokay(&mut self) {
         if let Some(selected_index) = self.sokay_list_state.selected() {
-            if let Some(current_text) =
-                ActionHandler::start_edit_sokay(&self.state, selected_index)
+            if let Some(current_text) = ActionHandler::start_edit_sokay(&self.state, selected_index)
             {
                 self.input_handler.set_input(current_text);
                 self.state.current_screen = AppScreen::EditSokay(selected_index);
@@ -857,6 +921,7 @@ impl App {
                 | AppScreen::EditElevation
                 | AppScreen::AddSokay
                 | AppScreen::EditSokay(_)
+                | AppScreen::EditStrengthMobility
                 | AppScreen::EditNotes
         )
     }

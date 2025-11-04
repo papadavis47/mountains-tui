@@ -1,4 +1,4 @@
-use crate::models::{DailyLog, FoodEntry};
+use crate::models::DailyLog;
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use std::fs;
@@ -82,88 +82,6 @@ impl FileManager {
         Ok(())
     }
 
-    /// Loads a daily log from disk for the specified date
-    ///
-    /// This method returns Option<DailyLog>:
-    /// - Some(log) if a file exists for the date and can be parsed
-    /// - None if no file exists for the date
-    ///
-    /// If a file exists but can't be parsed, this returns an error.
-    pub fn load_daily_log(&self, date: NaiveDate) -> Result<Option<DailyLog>> {
-        let file_path = self.get_file_path(date);
-
-        // Check if the file exists first
-        if !file_path.exists() {
-            return Ok(None);
-        }
-
-        // Read the file content
-        let content = fs::read_to_string(&file_path)
-            .context(format!("Failed to read file: {:?}", file_path))?;
-
-        // Parse the markdown content into a DailyLog
-        let log = self.markdown_to_daily_log(date, &content)?;
-        Ok(Some(log))
-    }
-
-    /// Loads all daily logs from the data directory
-    ///
-    /// This method:
-    /// 1. Scans the .mountains directory for .md files
-    /// 2. Parses each file that matches our naming convention
-    /// 3. Returns a vector of all successfully loaded daily logs
-    /// 4. Sorts the logs with newest first for better UX
-    ///
-    /// Files that can't be parsed are skipped rather than causing the entire
-    /// operation to fail. This makes the application more resilient.
-    pub fn load_all_daily_logs(&self) -> Result<Vec<DailyLog>> {
-        let mut logs = Vec::new();
-
-        // Return empty vector if the directory doesn't exist
-        if !self.mountains_dir.exists() {
-            return Ok(logs);
-        }
-
-        // Iterate through all files in the directory
-        for entry in fs::read_dir(&self.mountains_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            // Check if this looks like one of our log files
-            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                if filename.starts_with("mtslog-") && filename.ends_with(".md") {
-                    // Try to parse the date from the filename
-                    if let Some(date) = self.parse_date_from_filename(filename) {
-                        // Try to read and parse the file content
-                        let content = fs::read_to_string(&path)?;
-                        if let Ok(log) = self.markdown_to_daily_log(date, &content) {
-                            logs.push(log);
-                        }
-                        // If parsing fails, we skip this file and continue
-                    }
-                }
-            }
-        }
-
-        // Sort newest first for better user experience
-        logs.sort_by(|a, b| b.date.cmp(&a.date));
-        Ok(logs)
-    }
-
-    /// Extracts the date from a filename
-    ///
-    /// Expected format: "mtslog-MM.DD.YYYY.md"
-    /// Returns None if the filename doesn't match the expected format.
-    ///
-    /// This method uses Option<T> to handle the case where parsing fails gracefully.
-    fn parse_date_from_filename(&self, filename: &str) -> Option<NaiveDate> {
-        // Strip the prefix and suffix to get just the date part
-        let date_part = filename.strip_prefix("mtslog-")?.strip_suffix(".md")?;
-
-        // Try to parse the date using the expected format
-        NaiveDate::parse_from_str(date_part, "%m.%d.%Y").ok()
-    }
-
     /// Converts a DailyLog struct to markdown format
     ///
     /// This method creates a human-readable markdown representation of the daily log.
@@ -235,6 +153,13 @@ impl FileManager {
             content.push('\n'); // Add blank line after section
         }
 
+        // Add strength & mobility section if it exists
+        if let Some(strength_mobility) = &log.strength_mobility {
+            content.push_str("## Strength & Mobility\n");
+            content.push_str(strength_mobility);
+            content.push('\n');
+        }
+
         // Add daily notes section if notes exist
         if let Some(notes) = &log.notes {
             content.push_str("## Notes\n");
@@ -243,137 +168,5 @@ impl FileManager {
         }
 
         content
-    }
-
-    /// Parses markdown content into a DailyLog struct
-    ///
-    /// This method parses the markdown format created by daily_log_to_markdown().
-    /// It uses a simple state machine approach to track which section it's currently
-    /// parsing (measurements, food, or notes).
-    ///
-    /// The parsing is forgiving - if some parts can't be parsed, it continues
-    /// processing the rest of the file.
-    fn markdown_to_daily_log(&self, date: NaiveDate, content: &str) -> Result<DailyLog> {
-        let mut log = DailyLog::new(date);
-        let lines: Vec<&str> = content.lines().collect();
-
-        // State tracking for which section we're currently parsing
-        let mut in_measurements = false;
-        let mut in_food = false;
-        let mut in_sokay = false;
-        let mut in_notes = false;
-        let mut notes_content = String::new();
-
-        for line in lines {
-            let trimmed = line.trim();
-
-            // Check for section headers to update our parsing state
-            if trimmed.starts_with("## Measurements") {
-                in_measurements = true;
-                in_food = false;
-                in_sokay = false;
-                in_notes = false;
-            } else if trimmed.starts_with("## Food") {
-                in_measurements = false;
-                in_food = true;
-                in_sokay = false;
-                in_notes = false;
-            } else if trimmed.starts_with("## Sokay") {
-                in_measurements = false;
-                in_food = false;
-                in_sokay = true;
-                in_notes = false;
-            } else if trimmed.starts_with("## Notes") {
-                in_measurements = false;
-                in_food = false;
-                in_sokay = false;
-                in_notes = true;
-            } else if trimmed.starts_with("##") || trimmed.starts_with("#") {
-                // Any other section header resets our state
-                in_measurements = false;
-                in_food = false;
-                in_sokay = false;
-                in_notes = false;
-            } else if in_measurements && trimmed.starts_with("- **Weight:**") {
-                // Parse weight measurement
-                if let Some(weight_str) = trimmed
-                    .strip_prefix("- **Weight:**")
-                    .and_then(|s| s.strip_suffix(" lbs"))
-                {
-                    if let Ok(weight) = weight_str.trim().parse::<f32>() {
-                        log.weight = Some(weight);
-                    }
-                }
-            } else if in_measurements && trimmed.starts_with("- **Waist:**") {
-                // Parse waist measurement
-                if let Some(waist_str) = trimmed
-                    .strip_prefix("- **Waist:**")
-                    .and_then(|s| s.strip_suffix(" inches"))
-                {
-                    if let Ok(waist) = waist_str.trim().parse::<f32>() {
-                        log.waist = Some(waist);
-                    }
-                }
-            } else if in_measurements && trimmed.starts_with("- **Miles:**") {
-                // Parse miles covered
-                if let Some(miles_str) = trimmed
-                    .strip_prefix("- **Miles:**")
-                    .and_then(|s| s.strip_suffix(" mi"))
-                {
-                    if let Ok(miles) = miles_str.trim().parse::<f32>() {
-                        log.miles_covered = Some(miles);
-                    }
-                }
-            } else if in_measurements && trimmed.starts_with("- **Elevation:**") {
-                // Parse elevation gain (integer)
-                if let Some(elevation_str) = trimmed
-                    .strip_prefix("- **Elevation:**")
-                    .and_then(|s| s.strip_suffix(" ft"))
-                {
-                    if let Ok(elevation) = elevation_str.trim().parse::<i32>() {
-                        log.elevation_gain = Some(elevation);
-                    }
-                }
-            } else if in_sokay && trimmed.starts_with("- ") {
-                // Parse sokay entry: "- entry text"
-                if let Some(entry_text) = trimmed.strip_prefix("- ") {
-                    log.add_sokay_entry(entry_text.to_string());
-                }
-            } else if in_food && trimmed.starts_with("- **") {
-                // Parse food entry: "- **Food Name** - notes"
-                if let Some(rest) = trimmed.strip_prefix("- **") {
-                    let parts: Vec<&str> = rest.split("**").collect();
-                    if parts.len() >= 2 {
-                        let name = parts[0].trim().to_string();
-                        // Check if there are notes after the food name
-                        let notes = if parts.len() > 2 && parts[1].trim().starts_with(" - ") {
-                            Some(
-                                parts[1]
-                                    .trim()
-                                    .strip_prefix(" - ")
-                                    .unwrap_or("")
-                                    .to_string(),
-                            )
-                        } else {
-                            None
-                        };
-                        log.add_food_entry(FoodEntry::new(name, notes));
-                    }
-                }
-            } else if in_notes && !trimmed.is_empty() {
-                // Accumulate notes content
-                if !notes_content.is_empty() {
-                    notes_content.push('\n');
-                }
-                notes_content.push_str(line);
-            }
-        }
-
-        // Save accumulated notes if any were found
-        if !notes_content.is_empty() {
-            log.notes = Some(notes_content);
-        }
-
-        Ok(log)
     }
 }
