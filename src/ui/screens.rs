@@ -30,18 +30,14 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
     let chunks = create_standard_layout(f.area());
 
     // Render title
-    render_title(
-        f,
-        chunks[0],
-        "Mountains - A Food Tracker for Power to Weight Improvement",
-    );
+    render_title(f, chunks[0], "Mountains - A Trail Running Training Logger");
 
     // Create the list of daily logs
     // The items vector holds each list item to be displayed
     let items: Vec<ListItem> = if state.daily_logs.is_empty() {
         // Show helpful message when no logs exist yet
         vec![ListItem::new(
-            "No food logs yet. Press Enter to create one for today.",
+            "No training logs yet. Press Enter to create one for today.",
         )]
     } else {
         // Map each daily log to a list item showing date and food count
@@ -63,7 +59,7 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Mountains Food Log Days")
+                .title("Daily Training Logs")
                 // Horizontal padding moves text away from the borders
                 .padding(ratatui::widgets::Padding::horizontal(1)),
         )
@@ -76,7 +72,7 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
     render_help(
         f,
         chunks[2],
-        "q: quit | ↑/k: up | ↓/j: down | Enter: select/create",
+        "q: quit | ↑/k: up | ↓/j: down | Enter: select/create | D: delete day",
     );
 }
 
@@ -104,7 +100,7 @@ pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state
 
     // Render title with the selected date
     let title = format!(
-        "Mountains Food Log - {}",
+        "Mountains Training Log - {}",
         state.selected_date.format("%B %d, %Y")
     );
     render_title(f, chunks[0], &title);
@@ -191,9 +187,13 @@ fn render_measurements_section(
             "Sokay: 0 total".to_string()
         };
 
-        format!("{} | {} | {} | {} | {}", weight_str, waist_str, miles_str, elevation_str, sokay_str)
+        format!(
+            "{} | {} | {} | {} | {}",
+            weight_str, waist_str, miles_str, elevation_str, sokay_str
+        )
     } else {
-        "Weight: Not set | Waist: Not set | Miles: Not set | Elevation: Not set | Sokay: 0 total".to_string()
+        "Weight: Not set | Waist: Not set | Miles: Not set | Elevation: Not set | Sokay: 0 total"
+            .to_string()
     };
 
     // Create and render the measurements widget
@@ -284,7 +284,11 @@ fn render_strength_mobility_section(
     // Create and render the strength & mobility widget
     let sm_widget = Paragraph::new(sm_text)
         .style(Style::default().fg(Color::Cyan))
-        .block(Block::default().borders(Borders::ALL).title("Strength & Mobility"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Strength & Mobility"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(sm_widget, area);
 }
@@ -320,7 +324,7 @@ fn render_notes_section(
     // Create and render the notes widget
     let notes_widget = Paragraph::new(notes_text)
         .style(Style::default().fg(Color::Green))
-        .block(Block::default().borders(Borders::ALL).title("Daily Notes"))
+        .block(Block::default().borders(Borders::ALL).title("Notes"))
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(notes_widget, area);
 }
@@ -476,11 +480,20 @@ pub fn render_edit_strength_mobility_screen(
         ])
         .split(f.area());
 
-    let title = format!("Edit Strength & Mobility - {}", selected_date.format("%B %d, %Y"));
+    let title = format!(
+        "Edit Strength & Mobility - {}",
+        selected_date.format("%B %d, %Y")
+    );
     render_title(f, chunks[0], &title);
 
     // Render a larger text area for strength & mobility exercises
-    render_multiline_input_field(f, chunks[1], "Strength & Mobility Exercises", input_buffer, cursor_position);
+    render_multiline_input_field(
+        f,
+        chunks[1],
+        "Strength & Mobility Exercises",
+        input_buffer,
+        cursor_position,
+    );
 
     // Provide more detailed help for strength & mobility editing
     let help_text = "Record your strength and mobility exercises for the day\n\
@@ -680,9 +693,7 @@ pub fn render_sokay_view_screen(f: &mut Frame, state: &AppState, sokay_list_stat
     // Create the list items
     let items: Vec<ListItem> = if let Some(log) = log {
         if log.sokay_entries.is_empty() {
-            vec![ListItem::new(
-                "No sokay entries yet. Press 'a' to add one.",
-            )]
+            vec![ListItem::new("No sokay entries yet. Press 'a' to add one.")]
         } else {
             log.sokay_entries
                 .iter()
@@ -766,4 +777,41 @@ pub fn render_edit_sokay_screen(
         chunks[2],
         "Edit sokay item description | Enter: save | Esc: cancel",
     );
+}
+
+/// Renders the delete day confirmation screen
+///
+/// This screen asks the user to confirm deletion of an entire day's log.
+/// Shows a warning message and waits for Y/n input.
+pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate) {
+    let chunks = create_standard_layout(f.area());
+
+    let title = "Delete Day - Confirmation Required";
+    render_title(f, chunks[0], title);
+
+    // Create the warning message
+    let warning_text = format!(
+        "Are you sure you want to delete the entire log for {}?\n\n\
+        This will permanently delete:\n\
+        - All food entries\n\
+        - All sokay entries\n\
+        - All measurements (weight, waist, miles, elevation)\n\
+        - Strength & mobility exercises\n\
+        - Daily notes\n\n\
+        This action cannot be undone.\n\n\
+        Type 'Y' to confirm deletion or 'n' to cancel.",
+        selected_date.format("%B %d, %Y")
+    );
+
+    let warning_widget = Paragraph::new(warning_text)
+        .style(Style::default().fg(Color::Red))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Warning: Permanent Deletion"),
+        )
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(warning_widget, chunks[1]);
+
+    render_help(f, chunks[2], "Y: delete day | n/Esc: cancel");
 }

@@ -344,4 +344,33 @@ impl DbManager {
             .context("Failed to sync with Turso Cloud")?;
         Ok(())
     }
+
+    /// Deletes an entire daily log and all associated entries
+    ///
+    /// This performs a complete deletion:
+    /// 1. Deletes all food entries for the date (cascaded by foreign key)
+    /// 2. Deletes all sokay entries for the date (cascaded by foreign key)
+    /// 3. Deletes the daily_logs record
+    ///
+    /// The foreign key constraints with ON DELETE CASCADE ensure that
+    /// deleting the daily_logs record automatically deletes related entries.
+    pub async fn delete_daily_log(&mut self, date: NaiveDate) -> Result<()> {
+        let date_str = date.format("%Y-%m-%d").to_string();
+
+        // Start a transaction for atomic deletion
+        let tx = self.conn.transaction().await?;
+
+        // Delete the daily_logs record (this will cascade to food_entries and sokay_entries)
+        tx.execute("DELETE FROM daily_logs WHERE date = ?1", [date_str.as_str()])
+            .await
+            .context("Failed to delete daily log")?;
+
+        // Commit the transaction
+        tx.commit().await.context("Failed to commit transaction")?;
+
+        // Trigger manual sync after deletion
+        self.sync().await;
+
+        Ok(())
+    }
 }

@@ -841,4 +841,28 @@ impl ActionHandler {
             .map(|log| log.sokay_entries.len())
             .sum()
     }
+
+    /// Deletes an entire daily log from database and state
+    ///
+    /// This function:
+    /// 1. Deletes the log from the database (including all food and sokay entries)
+    /// 2. Removes the log from the application state
+    /// 3. Deletes the markdown backup file
+    pub async fn delete_daily_log(
+        state: &mut AppState,
+        db_manager: &mut DbManager,
+        file_manager: &FileManager,
+        date: chrono::NaiveDate,
+    ) -> anyhow::Result<()> {
+        // Delete from database
+        db_manager.delete_daily_log(date).await?;
+
+        // Remove from state
+        state.daily_logs.retain(|log| log.date != date);
+
+        // Delete markdown backup file
+        let _ = file_manager.delete_daily_log(date); // Ignore errors if file doesn't exist
+
+        Ok(())
+    }
 }

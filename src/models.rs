@@ -153,6 +153,8 @@ pub enum AppScreen {
     EditStrengthMobility,
     /// Editing daily notes
     EditNotes,
+    /// Confirming deletion of an entire day's log
+    ConfirmDeleteDay,
 }
 
 /// Manages the overall application state

@@ -12,7 +12,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Sokay tracking** - accountability for unhealthy food choices with cumulative counting
 - **Strength & mobility tracking** - multi-line text field for logging exercises
 - **Daily notes** for observations and reflections
-- **Add, edit, and delete** entries for food and sokay items
+- **Full CRUD operations** - add, edit, and delete entries for food and sokay items, plus delete entire days
 - **Cursor-enabled text input** with arrow key navigation
 - **Dual persistence** - Turso Cloud database (primary) with markdown file backups
 - **Cloud sync** - automatic background syncing with Turso Cloud
@@ -34,6 +34,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 
 - `↑/↓` or `j/k` - Navigate between dates
 - `Enter` - Select date or create today's log
+- `D` - Delete selected day (with confirmation)
 - `q` - Quit application
 
 ### Daily View
@@ -94,6 +95,11 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - `Ctrl+J` - Insert newline (Enter saves the notes)
 - `Enter` - Save notes
 - `Esc` - Cancel and return
+
+### Delete Day Confirmation Screen
+
+- `Y` - Confirm deletion (uppercase Y required for safety)
+- `n` or `Esc` - Cancel deletion and return to home screen
 
 ## File Structure
 
@@ -165,7 +171,16 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Critical Bug Fixes)
+### Latest Session (Delete Day Functionality)
+- ✅ **Full CRUD functionality** - added ability to delete entire days
+- ✅ **Delete from Home screen** - select a day and press 'D' to delete
+- ✅ **Confirmation prompt** - "Are you sure?" screen with Y/n confirmation
+- ✅ **Complete deletion** - removes from database, app state, and markdown backups
+- ✅ **Cloud sync** - deletions are synced to Turso Cloud
+- ✅ **Uppercase Y required** - safety measure to prevent accidental deletions
+- ✅ **Confirmation message** - displays all data that will be deleted
+
+### Previous Session (Critical Bug Fixes)
 - ✅ **Fixed async runtime deadlock** - converted all database operations to proper async/await instead of `block_on()`
 - ✅ **Fixed terminal freeze on save** - eliminated panic when saving entries by removing nested async runtime calls
 - ✅ **Fixed UI message interference** - removed `eprintln!` messages that stayed on screen after TUI initialization
@@ -217,7 +232,7 @@ Feeling strong today. Good hike in the morning.
 ## Architecture Notes
 
 - **App struct** - Main application coordinator managing state, database, and UI
-- **State management** - AppScreen enum for view routing (16 different screens)
+- **State management** - AppScreen enum for view routing (17 different screens)
 - **Dual persistence** - libsql database (primary) + markdown files (backup)
 - **Cloud sync** - Background sync with Turso Cloud, local-first approach
 - **Async architecture** - Fully async event loop and database operations using tokio

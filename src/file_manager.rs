@@ -169,4 +169,25 @@ impl FileManager {
 
         content
     }
+
+    /// Deletes a daily log markdown file from disk
+    ///
+    /// This method:
+    /// 1. Determines the file path for the given date
+    /// 2. Deletes the file if it exists
+    /// 3. Returns Ok(()) even if the file doesn't exist (idempotent operation)
+    ///
+    /// Returns an error only if the deletion fails for reasons other than
+    /// the file not existing.
+    pub fn delete_daily_log(&self, date: NaiveDate) -> Result<()> {
+        let file_path = self.get_file_path(date);
+
+        // Only try to delete if the file exists
+        if file_path.exists() {
+            fs::remove_file(&file_path)
+                .context(format!("Failed to delete file: {:?}", file_path))?;
+        }
+
+        Ok(())
+    }
 }

@@ -1,5 +1,3 @@
-/// This module contains the core App struct and its implementation.
-
 /// The App struct manages the overall application state and coordinates
 /// between the UI, event handling, and data persistence.
 use anyhow::{Context, Result};
@@ -22,23 +20,14 @@ use crate::ui::screens;
 /// - InputHandler: Text input and cursor management
 /// - ListState: UI list selection state
 pub struct App {
-    /// Core application state containing daily logs and current screen
     state: AppState,
-    /// Handles database operations with Turso Cloud sync
     db_manager: DbManager,
-    /// Handles saving and loading daily logs to/from markdown files (backup)
     file_manager: FileManager,
-    /// Manages text input for various input screens
     input_handler: InputHandler,
-    /// Tracks which item is selected in the home screen list
     list_state: ListState,
-    /// Tracks which item is selected in the daily view food list
     food_list_state: ListState,
-    /// Tracks which item is selected in the sokay view list
     sokay_list_state: ListState,
-    /// Flag to indicate when the application should exit
     should_quit: bool,
-    /// Timestamp of the last cloud sync operation
     last_sync_time: Instant,
 }
 
@@ -54,11 +43,9 @@ impl App {
     /// if database or file operations fail during initialization.
 
     pub async fn new() -> Result<Self> {
-        // Get the user's home directory and create .mountains directory
         let home_dir = dirs::home_dir().context("Could not find home directory")?;
         let mountains_dir = home_dir.join(".mountains");
 
-        // Create directory if it doesn't exist
         if !mountains_dir.exists() {
             std::fs::create_dir_all(&mountains_dir)
                 .context("Failed to create .mountains directory")?;
@@ -98,7 +85,10 @@ impl App {
     /// The loop continues until should_quit becomes true.
     /// Uses a 1-second timeout to allow periodic sync checks without blocking UX.
 
-    pub async fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+    pub async fn run(
+        &mut self,
+        terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    ) -> Result<()> {
         loop {
             // Draw the current UI state
             terminal.draw(|f| self.ui(f))?;
@@ -106,7 +96,8 @@ impl App {
             // Read keyboard event with timeout to allow periodic sync checks
             if crossterm::event::poll(Duration::from_secs(1))? {
                 if let Event::Key(key) = crossterm::event::read()? {
-                    self.handle_key_event_with_modifiers(key.code, key.modifiers).await?;
+                    self.handle_key_event_with_modifiers(key.code, key.modifiers)
+                        .await?;
                 }
             }
 
@@ -137,9 +128,20 @@ impl App {
             AppScreen::EditElevation => self.handle_edit_elevation_input(key).await?,
             AppScreen::SokayView => self.handle_sokay_view_input(key).await?,
             AppScreen::AddSokay => self.handle_add_sokay_input(key).await?,
-            AppScreen::EditSokay(sokay_index) => self.handle_edit_sokay_input(key, sokay_index).await?,
-            AppScreen::EditStrengthMobility => self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers).await?,
-            AppScreen::EditNotes => self.handle_edit_notes_input_with_modifiers(key, modifiers).await?,
+            AppScreen::EditSokay(sokay_index) => {
+                self.handle_edit_sokay_input(key, sokay_index).await?
+            }
+            AppScreen::EditStrengthMobility => {
+                self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers)
+                    .await?
+            }
+            AppScreen::EditNotes => {
+                self.handle_edit_notes_input_with_modifiers(key, modifiers)
+                    .await?
+            }
+            AppScreen::ConfirmDeleteDay => {
+                self.handle_confirm_delete_day_input(key).await?
+            }
             _ => self.handle_navigation_input(key).await?,
         }
         Ok(())
@@ -159,7 +161,8 @@ impl App {
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                     None, // No notes support in current implementation
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -187,7 +190,8 @@ impl App {
                     &self.file_manager,
                     food_index,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -213,12 +217,12 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
-                // Cancel weight editing
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -230,7 +234,6 @@ impl App {
         Ok(())
     }
 
-    /// Similar to weight input but for waist measurements.
     async fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
@@ -239,7 +242,8 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -254,8 +258,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles input for the Edit Strength & Mobility screen with modifier support
-    ///
     /// This method processes multi-line text input for editing strength & mobility exercises.
     /// It supports special key combinations like Ctrl+J for newlines.
     async fn handle_edit_strength_mobility_input_with_modifiers(
@@ -279,12 +281,12 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
-                // Cancel strength & mobility editing
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -296,10 +298,6 @@ impl App {
         Ok(())
     }
 
-    /// This method processes multi-line text input for editing daily notes.
-    /// It supports special key combinations like Ctrl+J for newlines.
-    /// Handles input for the Edit Notes screen with modifier support
-    ///
     /// This method processes multi-line text input for editing daily notes.
     /// It supports special key combinations like Ctrl+J for newlines.
     async fn handle_edit_notes_input_with_modifiers(
@@ -317,23 +315,21 @@ impl App {
 
         match key {
             KeyCode::Enter => {
-                // Save the notes and return to daily view
                 ActionHandler::update_notes(
                     &mut self.state,
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
-                // Cancel notes editing
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
             _ => {
-                // Handle multi-line text editing
                 self.input_handler.handle_multiline_text_input(key);
             }
         }
@@ -349,7 +345,8 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -373,7 +370,8 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -423,7 +421,8 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -448,7 +447,8 @@ impl App {
                     &self.file_manager,
                     sokay_index,
                     self.input_handler.input_buffer.clone(),
-                ).await?;
+                )
+                .await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -493,6 +493,12 @@ impl App {
             }
             KeyCode::Esc => {
                 self.handle_escape();
+            }
+            KeyCode::Char('D') => {
+                // Delete entire day (only available on Home screen with a day selected)
+                if matches!(self.state.current_screen, AppScreen::Home) {
+                    self.handle_delete_day_confirmation();
+                }
             }
             KeyCode::Char('a') => {
                 // Add food (only available in daily view)
@@ -654,6 +660,9 @@ impl App {
                     self.input_handler.cursor_position,
                 );
             }
+            AppScreen::ConfirmDeleteDay => {
+                screens::render_confirm_delete_day_screen(f, self.state.selected_date);
+            }
         }
     }
 
@@ -772,7 +781,8 @@ impl App {
                 &mut self.db_manager,
                 &self.file_manager,
                 selected_index,
-            ).await?;
+            )
+            .await?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -857,7 +867,8 @@ impl App {
                 &mut self.db_manager,
                 &self.file_manager,
                 selected_index,
-            ).await?;
+            )
+            .await?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -870,6 +881,52 @@ impl App {
                         .select(Some(log.sokay_entries.len() - 1));
                 }
                 // If the selected index is still valid, keep the current selection
+            }
+        }
+        Ok(())
+    }
+
+    /// Initiates the delete day confirmation flow.
+    /// Only proceeds if a day is selected in the Home screen list.
+    fn handle_delete_day_confirmation(&mut self) {
+        if let Some(selected_index) = self.list_state.selected() {
+            if selected_index < self.state.daily_logs.len() {
+                // Set the selected_date to the day we want to delete
+                self.state.selected_date = self.state.daily_logs[selected_index].date;
+                // Switch to confirmation screen
+                self.state.current_screen = AppScreen::ConfirmDeleteDay;
+            }
+        }
+    }
+
+    /// Handles keyboard input on the delete confirmation screen.
+    /// 'Y' confirms deletion, 'n' or Esc cancels.
+    async fn handle_confirm_delete_day_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Char('Y') => {
+                // Confirmed - delete the day
+                let date_to_delete = self.state.selected_date;
+
+                ActionHandler::delete_daily_log(
+                    &mut self.state,
+                    &mut self.db_manager,
+                    &self.file_manager,
+                    date_to_delete,
+                )
+                .await?;
+
+                // Return to home screen
+                self.state.current_screen = AppScreen::Home;
+
+                // Clear selection since the list has changed
+                self.list_state.select(None);
+            }
+            KeyCode::Char('n') | KeyCode::Esc => {
+                // Cancelled - return to home screen without deleting
+                self.state.current_screen = AppScreen::Home;
+            }
+            _ => {
+                // Ignore other keys
             }
         }
         Ok(())
