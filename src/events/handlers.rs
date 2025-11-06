@@ -448,7 +448,7 @@ impl ActionHandler {
     ///
     /// The Result<(), anyhow::Error> return type allows the caller to handle
     /// any errors that might occur during database operations.
-    pub fn save_food_entry(
+    pub async fn save_food_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -461,7 +461,7 @@ impl ActionHandler {
             log.add_food_entry(food_entry);
 
             // Save to database (primary storage with cloud sync)
-            tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+            db_manager.save_daily_log(log).await?;
 
             // Optionally save to markdown as backup
             let _ = file_manager.save_daily_log(log); // Ignore markdown errors
@@ -472,7 +472,7 @@ impl ActionHandler {
     /// Updates an existing food entry
     ///
     /// This function finds the food entry by index and updates its name.
-    pub fn update_food_entry(
+    pub async fn update_food_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -487,7 +487,7 @@ impl ActionHandler {
             {
                 if food_index < log.food_entries.len() {
                     log.food_entries[food_index].name = new_name;
-                    tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                    db_manager.save_daily_log(log).await?;
                     let _ = file_manager.save_daily_log(log); // Backup to markdown
                 }
             }
@@ -499,7 +499,7 @@ impl ActionHandler {
     ///
     /// This function removes a food entry by index and updates the database.
     /// It also handles updating the selection state if needed.
-    pub fn delete_food_entry(
+    pub async fn delete_food_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -512,7 +512,7 @@ impl ActionHandler {
         {
             if food_index < log.food_entries.len() {
                 log.remove_food_entry(food_index);
-                tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                db_manager.save_daily_log(log).await?;
                 let _ = file_manager.save_daily_log(log); // Backup to markdown
             }
         }
@@ -523,7 +523,7 @@ impl ActionHandler {
     ///
     /// This function parses the input string as a float and saves it.
     /// Empty input clears the weight (sets it to None).
-    pub fn update_weight(
+    pub async fn update_weight(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -536,7 +536,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.weight = weight;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -544,7 +544,7 @@ impl ActionHandler {
     /// Updates the waist measurement for the selected date
     ///
     /// Similar to update_weight but for waist measurements.
-    pub fn update_waist(
+    pub async fn update_waist(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -557,7 +557,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.waist = waist;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -619,7 +619,7 @@ impl ActionHandler {
     ///
     /// This function saves the strength & mobility text to the daily log.
     /// Empty input clears the strength & mobility field (sets it to None).
-    pub fn update_strength_mobility(
+    pub async fn update_strength_mobility(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -632,7 +632,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.strength_mobility = strength_mobility;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -653,7 +653,7 @@ impl ActionHandler {
     ///
     /// This function saves the notes text to the daily log.
     /// Empty input clears the notes (sets it to None).
-    pub fn update_notes(
+    pub async fn update_notes(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -666,7 +666,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.notes = notes;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -687,7 +687,7 @@ impl ActionHandler {
     ///
     /// This function parses the input string as a float and saves it.
     /// Empty input clears the miles (sets it to None).
-    pub fn update_miles(
+    pub async fn update_miles(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -700,7 +700,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.miles_covered = miles;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -709,7 +709,7 @@ impl ActionHandler {
     ///
     /// This function parses the input string as an integer and saves it.
     /// Empty input clears the elevation (sets it to None).
-    pub fn update_elevation(
+    pub async fn update_elevation(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -722,7 +722,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.elevation_gain = elevation;
-        tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+        db_manager.save_daily_log(log).await?;
         let _ = file_manager.save_daily_log(log); // Backup to markdown
         Ok(())
     }
@@ -754,7 +754,7 @@ impl ActionHandler {
     /// Saves a new sokay entry to the daily log
     ///
     /// This function adds a sokay entry (unhealthy food choice) to the current day's log.
-    pub fn save_sokay_entry(
+    pub async fn save_sokay_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -763,7 +763,7 @@ impl ActionHandler {
         if !sokay_text.is_empty() {
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_sokay_entry(sokay_text);
-            tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+            db_manager.save_daily_log(log).await?;
             let _ = file_manager.save_daily_log(log); // Backup to markdown
         }
         Ok(())
@@ -772,7 +772,7 @@ impl ActionHandler {
     /// Updates an existing sokay entry
     ///
     /// This function finds the sokay entry by index and updates its text.
-    pub fn update_sokay_entry(
+    pub async fn update_sokay_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -787,7 +787,7 @@ impl ActionHandler {
             {
                 if sokay_index < log.sokay_entries.len() {
                     log.sokay_entries[sokay_index] = new_text;
-                    tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                    db_manager.save_daily_log(log).await?;
                     let _ = file_manager.save_daily_log(log); // Backup to markdown
                 }
             }
@@ -798,7 +798,7 @@ impl ActionHandler {
     /// Deletes a sokay entry from the daily log
     ///
     /// This function removes a sokay entry by index and updates the database.
-    pub fn delete_sokay_entry(
+    pub async fn delete_sokay_entry(
         state: &mut AppState,
         db_manager: &mut DbManager,
         file_manager: &FileManager,
@@ -811,7 +811,7 @@ impl ActionHandler {
         {
             if sokay_index < log.sokay_entries.len() {
                 log.remove_sokay_entry(sokay_index);
-                tokio::runtime::Handle::current().block_on(db_manager.save_daily_log(log))?;
+                db_manager.save_daily_log(log).await?;
                 let _ = file_manager.save_daily_log(log); // Backup to markdown
             }
         }

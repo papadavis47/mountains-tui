@@ -98,7 +98,7 @@ impl App {
     /// The loop continues until should_quit becomes true.
     /// Uses a 1-second timeout to allow periodic sync checks without blocking UX.
 
-    pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+    pub async fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
         loop {
             // Draw the current UI state
             terminal.draw(|f| self.ui(f))?;
@@ -106,12 +106,12 @@ impl App {
             // Read keyboard event with timeout to allow periodic sync checks
             if crossterm::event::poll(Duration::from_secs(1))? {
                 if let Event::Key(key) = crossterm::event::read()? {
-                    self.handle_key_event_with_modifiers(key.code, key.modifiers)?;
+                    self.handle_key_event_with_modifiers(key.code, key.modifiers).await?;
                 }
             }
 
             // Check if we should sync with Turso Cloud (every 60 seconds)
-            self.check_and_sync()?;
+            self.check_and_sync().await?;
 
             // Exit the loop if the user wants to quit
             if self.should_quit {
@@ -123,24 +123,24 @@ impl App {
 
     /// This method routes keyboard input to the appropriate handler based on
     /// the current screen. It also handles special key combinations with modifiers.
-    fn handle_key_event_with_modifiers(
+    async fn handle_key_event_with_modifiers(
         &mut self,
         key: KeyCode,
         modifiers: crossterm::event::KeyModifiers,
     ) -> Result<()> {
         match self.state.current_screen {
-            AppScreen::AddFood => self.handle_add_food_input(key)?,
-            AppScreen::EditFood(food_index) => self.handle_edit_food_input(key, food_index)?,
-            AppScreen::EditWeight => self.handle_edit_weight_input(key)?,
-            AppScreen::EditWaist => self.handle_edit_waist_input(key)?,
-            AppScreen::EditMiles => self.handle_edit_miles_input(key)?,
-            AppScreen::EditElevation => self.handle_edit_elevation_input(key)?,
-            AppScreen::SokayView => self.handle_sokay_view_input(key)?,
-            AppScreen::AddSokay => self.handle_add_sokay_input(key)?,
-            AppScreen::EditSokay(sokay_index) => self.handle_edit_sokay_input(key, sokay_index)?,
-            AppScreen::EditStrengthMobility => self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers)?,
-            AppScreen::EditNotes => self.handle_edit_notes_input_with_modifiers(key, modifiers)?,
-            _ => self.handle_navigation_input(key)?,
+            AppScreen::AddFood => self.handle_add_food_input(key).await?,
+            AppScreen::EditFood(food_index) => self.handle_edit_food_input(key, food_index).await?,
+            AppScreen::EditWeight => self.handle_edit_weight_input(key).await?,
+            AppScreen::EditWaist => self.handle_edit_waist_input(key).await?,
+            AppScreen::EditMiles => self.handle_edit_miles_input(key).await?,
+            AppScreen::EditElevation => self.handle_edit_elevation_input(key).await?,
+            AppScreen::SokayView => self.handle_sokay_view_input(key).await?,
+            AppScreen::AddSokay => self.handle_add_sokay_input(key).await?,
+            AppScreen::EditSokay(sokay_index) => self.handle_edit_sokay_input(key, sokay_index).await?,
+            AppScreen::EditStrengthMobility => self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers).await?,
+            AppScreen::EditNotes => self.handle_edit_notes_input_with_modifiers(key, modifiers).await?,
+            _ => self.handle_navigation_input(key).await?,
         }
         Ok(())
     }
@@ -149,7 +149,7 @@ impl App {
     /// Enter saves the entry, Escape cancels, and other keys are handled
     /// by the InputHandler for text editing.
 
-    fn handle_add_food_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_add_food_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 // Save the food entry and return to daily view
@@ -159,7 +159,7 @@ impl App {
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
                     None, // No notes support in current implementation
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -177,7 +177,7 @@ impl App {
     }
 
     /// Similar to add food input, but updates an existing food entry.
-    fn handle_edit_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
+    async fn handle_edit_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 // Update the existing food entry
@@ -187,7 +187,7 @@ impl App {
                     &self.file_manager,
                     food_index,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -204,7 +204,7 @@ impl App {
     }
 
     /// Uses numeric input handling to only allow numbers and decimal points.
-    fn handle_edit_weight_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_edit_weight_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 // Save the weight measurement
@@ -213,7 +213,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -231,7 +231,7 @@ impl App {
     }
 
     /// Similar to weight input but for waist measurements.
-    fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 ActionHandler::update_waist(
@@ -239,7 +239,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -258,7 +258,7 @@ impl App {
     ///
     /// This method processes multi-line text input for editing strength & mobility exercises.
     /// It supports special key combinations like Ctrl+J for newlines.
-    fn handle_edit_strength_mobility_input_with_modifiers(
+    async fn handle_edit_strength_mobility_input_with_modifiers(
         &mut self,
         key: KeyCode,
         modifiers: crossterm::event::KeyModifiers,
@@ -279,7 +279,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -302,7 +302,7 @@ impl App {
     ///
     /// This method processes multi-line text input for editing daily notes.
     /// It supports special key combinations like Ctrl+J for newlines.
-    fn handle_edit_notes_input_with_modifiers(
+    async fn handle_edit_notes_input_with_modifiers(
         &mut self,
         key: KeyCode,
         modifiers: crossterm::event::KeyModifiers,
@@ -323,7 +323,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -341,7 +341,7 @@ impl App {
     }
 
     /// Handles numeric input for editing miles covered.
-    fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 ActionHandler::update_miles(
@@ -349,7 +349,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -365,7 +365,7 @@ impl App {
     }
 
     /// Handles integer input for editing elevation gain (no decimal points allowed).
-    fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 ActionHandler::update_elevation(
@@ -373,7 +373,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -389,7 +389,7 @@ impl App {
     }
 
     /// Handles keyboard input for the Sokay View screen (list of sokay entries).
-    fn handle_sokay_view_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_sokay_view_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Char('a') => {
                 self.state.current_screen = AppScreen::AddSokay;
@@ -398,7 +398,7 @@ impl App {
                 self.handle_edit_sokay();
             }
             KeyCode::Char('d') => {
-                self.handle_delete_sokay()?;
+                self.handle_delete_sokay().await?;
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 self.move_sokay_selection_down();
@@ -415,7 +415,7 @@ impl App {
     }
 
     /// Handles text input for adding a new sokay entry.
-    fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 ActionHandler::save_sokay_entry(
@@ -423,7 +423,7 @@ impl App {
                     &mut self.db_manager,
                     &self.file_manager,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -439,7 +439,7 @@ impl App {
     }
 
     /// Handles text input for editing an existing sokay entry.
-    fn handle_edit_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
+    async fn handle_edit_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
         match key {
             KeyCode::Enter => {
                 ActionHandler::update_sokay_entry(
@@ -448,7 +448,7 @@ impl App {
                     &self.file_manager,
                     sokay_index,
                     self.input_handler.input_buffer.clone(),
-                )?;
+                ).await?;
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -466,7 +466,7 @@ impl App {
     /// This method handles keyboard input for the Home and Daily View screens,
     /// including navigation (up/down), actions (add, edit, delete), and
     /// screen transitions.
-    fn handle_navigation_input(&mut self, key: KeyCode) -> Result<()> {
+    async fn handle_navigation_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Char('q') => {
                 // Quit the application
@@ -509,7 +509,7 @@ impl App {
             KeyCode::Char('d') => {
                 // Delete food (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.handle_delete_food()?;
+                    self.handle_delete_food().await?;
                 }
             }
             KeyCode::Char('w') => {
@@ -765,14 +765,14 @@ impl App {
     }
 
     /// This method also handles updating the selection state after deletion.
-    fn handle_delete_food(&mut self) -> Result<()> {
+    async fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
             ActionHandler::delete_food_entry(
                 &mut self.state,
                 &mut self.db_manager,
                 &self.file_manager,
                 selected_index,
-            )?;
+            ).await?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -850,14 +850,14 @@ impl App {
     }
 
     /// Deletes a sokay entry.
-    fn handle_delete_sokay(&mut self) -> Result<()> {
+    async fn handle_delete_sokay(&mut self) -> Result<()> {
         if let Some(selected_index) = self.sokay_list_state.selected() {
             ActionHandler::delete_sokay_entry(
                 &mut self.state,
                 &mut self.db_manager,
                 &self.file_manager,
                 selected_index,
-            )?;
+            ).await?;
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -884,7 +884,7 @@ impl App {
     ///
     /// This ensures regular syncing while the app is active, but avoids
     /// interrupting the user during input operations.
-    fn check_and_sync(&mut self) -> Result<()> {
+    async fn check_and_sync(&mut self) -> Result<()> {
         const SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
         // Check if enough time has passed since last sync
@@ -897,8 +897,8 @@ impl App {
             return Ok(()); // User is typing, don't interrupt
         }
 
-        // Perform the sync (non-blocking, runs in background)
-        tokio::runtime::Handle::current().block_on(self.db_manager.sync_now())?;
+        // Perform the sync (now async)
+        self.db_manager.sync_now().await?;
 
         // Update last sync time
         self.last_sync_time = Instant::now();

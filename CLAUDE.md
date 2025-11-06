@@ -165,7 +165,15 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Code Cleanup)
+### Latest Session (Critical Bug Fixes)
+- ✅ **Fixed async runtime deadlock** - converted all database operations to proper async/await instead of `block_on()`
+- ✅ **Fixed terminal freeze on save** - eliminated panic when saving entries by removing nested async runtime calls
+- ✅ **Fixed UI message interference** - removed `eprintln!` messages that stayed on screen after TUI initialization
+- ✅ **Made event loop fully async** - `run()` method and all handlers are now properly async
+- ✅ **Improved app stability** - terminal now properly cleans up on exit instead of freezing
+- ✅ **Zero compiler warnings** - application compiles cleanly with no warnings
+
+### Previous Session (Code Cleanup)
 - ✅ **Removed unused code** - cleaned up dead code that was never executed
 - ✅ **Database methods** - removed `DbManager::load_daily_log` (app loads all logs at startup)
 - ✅ **File loading methods** - removed markdown parsing functions (app is database-first now)
@@ -212,6 +220,7 @@ Feeling strong today. Good hike in the morning.
 - **State management** - AppScreen enum for view routing (16 different screens)
 - **Dual persistence** - libsql database (primary) + markdown files (backup)
 - **Cloud sync** - Background sync with Turso Cloud, local-first approach
+- **Async architecture** - Fully async event loop and database operations using tokio
 - **Input handling** - Specialized handlers for text, numeric, integer, and multi-line input
 - **Modular design** - Separated concerns (models, events, ui, database, file management)
 - **Responsive UI** - Terminal size adaptation with ratatui layout system

@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
     let result = {
         // Create and run the application (async to initialize database)
         let mut app = App::new().await?;
-        app.run(&mut terminal)
+        app.run(&mut terminal).await
     };
 
     // Terminal cleanup phase

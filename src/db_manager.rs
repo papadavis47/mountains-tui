@@ -55,7 +55,6 @@ impl DbManager {
         let db = match (turso_url, turso_token) {
             (Ok(url), Ok(token)) => {
                 // Both credentials available - use embedded replica with cloud sync
-                eprintln!("Initializing Turso Cloud sync...");
                 Builder::new_remote_replica(db_path_str, url, token)
                     .sync_interval(Duration::from_secs(300)) // Sync every 5 minutes
                     .build()
@@ -64,8 +63,6 @@ impl DbManager {
             }
             _ => {
                 // Missing credentials - use local-only database
-                eprintln!("Warning: Turso credentials not found. Using local-only database.");
-                eprintln!("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in .env file for cloud sync.");
                 Builder::new_local(db_path_str)
                     .build()
                     .await
@@ -327,12 +324,10 @@ impl DbManager {
     /// Manually triggers a sync with Turso Cloud
     ///
     /// This is called after save operations to ensure changes are synced promptly.
-    /// Errors are logged but not propagated since sync is a best-effort operation.
+    /// Errors are silently ignored since sync is a best-effort operation.
+    /// Changes are saved locally and will sync when connection is restored.
     async fn sync(&self) {
-        if let Err(e) = self.db.sync().await {
-            eprintln!("Warning: Failed to sync with Turso Cloud: {}", e);
-            eprintln!("Changes are saved locally and will sync when connection is restored.");
-        }
+        let _ = self.db.sync().await; // Ignore sync errors - best effort
     }
 
     /// Public method to manually trigger a sync with Turso Cloud
