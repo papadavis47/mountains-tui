@@ -1,7 +1,3 @@
-/// Mountains Food Tracker - Main Entry Point
-///
-/// This is the main entry point for the Mountains Food Tracker application.
-///
 /// The main.rs file in Rust applications is responsible for:
 /// 1. Setting up the application environment
 /// 2. Initializing necessary components (like the terminal)
@@ -10,8 +6,7 @@
 ///
 /// This file is kept minimal to focus only on application setup and teardown,
 /// while the actual application logic is organized in separate modules.
-// Module declarations
-// In Rust, you need to declare modules before you can use them
+///
 mod app; // Main application logic
 mod db_manager; // Database operations with Turso
 mod events; // Event handling modules
@@ -19,8 +14,6 @@ mod file_manager; // File I/O operations
 mod models; // Data structures and types
 mod ui; // User interface modules
 
-// Import statements
-// We import only what we need for the main function
 use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -32,8 +25,6 @@ use std::io;
 
 use crate::app::App;
 
-/// Main function - Entry point of the application
-///
 /// The main function is responsible for:
 /// 1. Loading environment variables for Turso configuration
 /// 2. Setting up the terminal for TUI (Text User Interface) mode
@@ -109,41 +100,3 @@ fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Re
     terminal.show_cursor()?;
     Ok(())
 }
-
-/*
-Error handling demonstration
-
-This application uses the `anyhow` crate for error handling, which provides:
-- Easy error propagation with the `?` operator
-- Rich error context and chaining
-- Simple Result<T> types without specifying specific error types
-
-The `?` operator is Rust's error propagation operator. When used after
-a function call that returns Result<T, E>, it:
-- If Ok(value): unwraps and returns the value
-- If Err(error): immediately returns the error from the current function
-
-This allows for clean, readable error handling without explicit match statements.
-
-Module organization explanation
-
-The module structure follows Rust best practices:
-
-- main.rs: Application entry point and setup
-- app.rs: Core application logic and state management
-- models.rs: Data structures and business logic types
-- file_manager.rs: File I/O operations and data persistence
-- ui/: UI-related modules organized in a subdirectory
-  - mod.rs: Module declarations for the ui module
-  - screens.rs: Screen rendering logic
-  - components.rs: Reusable UI components and utilities
-- events/: Event handling modules
-  - mod.rs: Module declarations for the events module
-  - handlers.rs: Input and keyboard event handling logic
-
-This organization provides:
-- Clear separation of concerns
-- Easy navigation and understanding
-- Scalability as the application grows
-- Testability through isolated modules
-*/

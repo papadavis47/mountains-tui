@@ -1,11 +1,7 @@
-/// Data models for the Mountains Food Tracker
-///
 /// This module contains all the core data structures used throughout the application.
-/// These models represent the business domain of food tracking and body measurements.
 ///
 /// The structures here use Rust's type system to ensure data integrity and
 /// provide a clear interface for the rest of the application.
-
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -230,4 +226,3 @@ impl AppState {
         self.daily_logs.iter().find(|log| log.date == date)
     }
 }
-
