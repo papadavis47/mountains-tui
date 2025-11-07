@@ -132,15 +132,17 @@ Data storage:
 
 - **Weight:** 175.5 lbs
 - **Waist:** 34.2 inches
-- **Miles:** 3.2 mi
-- **Elevation:** 450 ft
-- **Sokay:** 5 total
 
 ## Food
 
 - **Oatmeal** - with blueberries
 - **Chicken Salad**
 - **Green Tea**
+
+## Running
+
+- **Miles:** 3.2 mi
+- **Elevation:** 450 ft
 
 ## Sokay
 

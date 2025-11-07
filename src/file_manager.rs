@@ -101,32 +101,14 @@ impl FileManager {
             log.date.format("%B %d, %Y")
         ));
 
-        // Add measurements section if any measurements exist
-        if log.weight.is_some()
-            || log.waist.is_some()
-            || log.miles_covered.is_some()
-            || log.elevation_gain.is_some()
-            || !log.sokay_entries.is_empty()
-        {
+        // Add measurements section (body measurements only)
+        if log.weight.is_some() || log.waist.is_some() {
             content.push_str("## Measurements\n");
-            // Body measurements
             if let Some(weight) = log.weight {
                 content.push_str(&format!("- **Weight:** {} lbs\n", weight));
             }
             if let Some(waist) = log.waist {
                 content.push_str(&format!("- **Waist:** {} inches\n", waist));
-            }
-            // Activity measurements
-            if let Some(miles) = log.miles_covered {
-                content.push_str(&format!("- **Miles:** {} mi\n", miles));
-            }
-            if let Some(elevation) = log.elevation_gain {
-                content.push_str(&format!("- **Elevation:** {} ft\n", elevation));
-            }
-            // Sokay cumulative count (Note: this is just for display in markdown,
-            // actual calculation happens elsewhere)
-            if !log.sokay_entries.is_empty() {
-                content.push_str(&format!("- **Sokay:** {} items\n", log.sokay_entries.len()));
             }
             content.push('\n'); // Add blank line after section
         }
@@ -140,6 +122,18 @@ impl FileManager {
                     content.push_str(&format!(" - {}", notes));
                 }
                 content.push('\n');
+            }
+            content.push('\n'); // Add blank line after section
+        }
+
+        // Add running section (activity measurements)
+        if log.miles_covered.is_some() || log.elevation_gain.is_some() {
+            content.push_str("## Running\n");
+            if let Some(miles) = log.miles_covered {
+                content.push_str(&format!("- **Miles:** {} mi\n", miles));
+            }
+            if let Some(elevation) = log.elevation_gain {
+                content.push_str(&format!("- **Elevation:** {} ft\n", elevation));
             }
             content.push('\n'); // Add blank line after section
         }

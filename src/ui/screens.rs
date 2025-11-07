@@ -23,12 +23,20 @@ use crate::ui::components::*;
 ///
 /// The `&mut` parameter for list_state allows the function to modify
 /// which item is currently selected in the list.
-pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut ListState, sync_status: &str) {
+pub fn render_home_screen(
+    f: &mut Frame,
+    state: &AppState,
+    list_state: &mut ListState,
+    sync_status: &str,
+) {
     // Create the standard three-section layout
     let chunks = create_standard_layout(f.area());
 
     // Render title with sync status
-    let title = format!("Mountains - A Trail Running Training Logger {}", sync_status);
+    let title = format!(
+        "Mountains - A Trail Running Training Logger {}",
+        sync_status
+    );
     render_title(f, chunks[0], &title);
 
     // Create the list of daily logs
@@ -81,16 +89,27 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
 /// - Date title with sync status
 /// - Measurements (weight and waist)
 /// - List of food entries
+/// - Running activity (miles and elevation)
+/// - Sokay entries (unhealthy choices tracker)
+/// - Strength & mobility exercises
+/// - Daily notes
 /// - Help text with available actions
-pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state: &mut ListState, sync_status: &str) {
-    // Create a more complex layout that includes space for strength & mobility and notes
+pub fn render_daily_view_screen(
+    f: &mut Frame,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sync_status: &str,
+) {
+    // Create layout with all sections
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
             Constraint::Length(3), // Title
-            Constraint::Length(4), // Measurements
-            Constraint::Min(5),    // Food list (reduced minimum)
+            Constraint::Length(3), // Measurements (Weight, Waist)
+            Constraint::Length(3), // Running (Miles, Elevation)
+            Constraint::Min(4),    // Food list
+            Constraint::Length(5), // Sokay (count + entries list)
             Constraint::Length(4), // Strength & Mobility section
             Constraint::Length(4), // Notes section
             Constraint::Length(3), // Help
@@ -105,35 +124,41 @@ pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state
     );
     render_title(f, chunks[0], &title);
 
-    // Render measurements section
+    // Render measurements section (Weight, Waist)
     render_measurements_section(f, chunks[1], state.selected_date, &state.daily_logs);
+
+    // Render running section (Miles, Elevation)
+    render_running_section(f, chunks[2], state.selected_date, &state.daily_logs);
 
     // Render food items list
     render_food_list_section(
         f,
-        chunks[2],
+        chunks[3],
         state.selected_date,
         &state.daily_logs,
         food_list_state,
     );
 
+    // Render sokay section (cumulative count + entries)
+    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs);
+
     // Render strength & mobility section
-    render_strength_mobility_section(f, chunks[3], state.selected_date, &state.daily_logs);
+    render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs);
 
     // Render notes section
-    render_notes_section(f, chunks[4], state.selected_date, &state.daily_logs);
+    render_notes_section(f, chunks[6], state.selected_date, &state.daily_logs);
 
-    // Render help text with all available actions (including strength & mobility and notes)
+    // Render help text with all available actions
     render_help(
         f,
-        chunks[5],
+        chunks[7],
         "q: quit | a: add food | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | c: sokay | t: training | n: notes | ↑/↓: navigate | Esc: back",
     );
 }
 
 /// Renders the measurements display section
 ///
-/// Shows current weight, waist, miles, elevation, and cumulative sokay count for the selected date.
+/// Shows current weight and waist measurements for the selected date.
 /// If no measurements are recorded, shows "Not set" placeholders.
 fn render_measurements_section(
     f: &mut Frame,
@@ -144,31 +169,46 @@ fn render_measurements_section(
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    // Calculate cumulative sokay count up to selected date
-    let cumulative_sokay = crate::events::handlers::ActionHandler::calculate_cumulative_sokay(
-        &crate::models::AppState {
-            current_screen: crate::models::AppScreen::DailyView,
-            selected_date,
-            daily_logs: daily_logs.to_vec(),
-        },
-        selected_date,
-    );
-
-    // Format the measurements text - organize by body then activity measurements
+    // Format the measurements text - body measurements only
     let measurements_text = if let Some(log) = log {
-        // Body measurements
         let weight_str = if let Some(weight) = log.weight {
             format!("Weight: {} lbs", weight)
         } else {
             "Weight: Not set".to_string()
         };
         let waist_str = if let Some(waist) = log.waist {
-            format!("Waist: {} in", waist)
+            format!("Waist Size: {} in", waist)
         } else {
-            "Waist: Not set".to_string()
+            "Waist Size: Not set".to_string()
         };
 
-        // Activity measurements
+        format!("{} | {}", weight_str, waist_str)
+    } else {
+        "Weight: Not set | Waist Size: Not set".to_string()
+    };
+
+    // Create and render the measurements widget
+    let measurements_widget = Paragraph::new(measurements_text)
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default().borders(Borders::ALL).title("Measurements"));
+    f.render_widget(measurements_widget, area);
+}
+
+/// Renders the running activity display section
+///
+/// Shows current miles covered and elevation gain for the selected date.
+/// If no running data is recorded, shows "Not set" placeholders.
+fn render_running_section(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    selected_date: NaiveDate,
+    daily_logs: &[DailyLog],
+) {
+    // Find the log for the selected date
+    let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    // Format the running text - activity measurements only
+    let running_text = if let Some(log) = log {
         let miles_str = if let Some(miles) = log.miles_covered {
             format!("Miles: {} mi", miles)
         } else {
@@ -180,27 +220,16 @@ fn render_measurements_section(
             "Elevation: Not set".to_string()
         };
 
-        // Sokay count (cumulative)
-        let sokay_str = if cumulative_sokay > 0 {
-            format!("Sokay: {} total", cumulative_sokay)
-        } else {
-            "Sokay: 0 total".to_string()
-        };
-
-        format!(
-            "{} | {} | {} | {} | {}",
-            weight_str, waist_str, miles_str, elevation_str, sokay_str
-        )
+        format!("{} | {}", miles_str, elevation_str)
     } else {
-        "Weight: Not set | Waist: Not set | Miles: Not set | Elevation: Not set | Sokay: 0 total"
-            .to_string()
+        "Miles: Not set | Elevation: Not set".to_string()
     };
 
-    // Create and render the measurements widget
-    let measurements_widget = Paragraph::new(measurements_text)
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Measurements"));
-    f.render_widget(measurements_widget, area);
+    // Create and render the running widget
+    let running_widget = Paragraph::new(running_text)
+        .style(Style::default().fg(Color::LightRed))
+        .block(Block::default().borders(Borders::ALL).title("Running"));
+    f.render_widget(running_widget, area);
 }
 
 /// Renders the food items list section
@@ -251,6 +280,69 @@ fn render_food_list_section(
         )
         .highlight_style(create_highlight_style());
     f.render_stateful_widget(list, area, food_list_state);
+}
+
+/// Renders the sokay display section
+///
+/// Shows cumulative sokay count and list of sokay entries for the selected date.
+/// Sokay entries track unhealthy food choices for accountability.
+fn render_sokay_section(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    selected_date: NaiveDate,
+    daily_logs: &[DailyLog],
+) {
+    // Find the log for the selected date
+    let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    // Calculate cumulative sokay count up to selected date
+    let cumulative_sokay = crate::events::handlers::ActionHandler::calculate_cumulative_sokay(
+        &crate::models::AppState {
+            current_screen: crate::models::AppScreen::DailyView,
+            selected_date,
+            daily_logs: daily_logs.to_vec(),
+        },
+        selected_date,
+    );
+
+    // Build the sokay text with count and entries
+    let sokay_text = if let Some(log) = log {
+        let count_str = if cumulative_sokay > 0 {
+            format!("Total: {} sokay entries\n\n", cumulative_sokay)
+        } else {
+            "Total: 0 sokay entries\n\n".to_string()
+        };
+
+        if log.sokay_entries.is_empty() {
+            format!(
+                "{}No sokay entries for today. Press 'c' to manage sokay.",
+                count_str
+            )
+        } else {
+            let entries_str = log
+                .sokay_entries
+                .iter()
+                .enumerate()
+                .map(|(i, entry)| format!("{}. {}", i + 1, entry))
+                .collect::<Vec<_>>()
+                .join("\n");
+            format!("{}Today's entries:\n{}", count_str, entries_str)
+        }
+    } else {
+        "Total: 0 sokay entries\n\nNo sokay entries for today. Press 'c' to manage sokay."
+            .to_string()
+    };
+
+    // Create and render the sokay widget
+    let sokay_widget = Paragraph::new(sokay_text)
+        .style(Style::default().fg(Color::Magenta))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Sokay (Unhealthy Choices)"),
+        )
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(sokay_widget, area);
 }
 
 /// Renders the strength & mobility display section
@@ -413,13 +505,13 @@ pub fn render_edit_waist_screen(
 ) {
     let chunks = create_standard_layout(f.area());
 
-    let title = format!("Edit Waist - {}", selected_date.format("%B %d, %Y"));
+    let title = format!("Edit Waist Size - {}", selected_date.format("%B %d, %Y"));
     render_title(f, chunks[0], &title);
 
     render_input_field(
         f,
         chunks[1],
-        "Waist (inches)",
+        "Waist Size (inches)",
         input_buffer,
         cursor_position,
     );
@@ -795,7 +887,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         This will permanently delete:\n\
         - All food entries\n\
         - All sokay entries\n\
-        - All measurements (weight, waist, miles, elevation)\n\
+        - All measurements (weight, waist size, miles, elevation)\n\
         - Strength & mobility exercises\n\
         - Daily notes\n\n\
         This action cannot be undone.\n\n\
