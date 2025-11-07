@@ -15,9 +15,24 @@ use chrono::NaiveDate;
 use libsql::{Builder, Connection, Database};
 use std::env;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 
 use crate::models::{DailyLog, FoodEntry};
+
+/// Connection state for Turso Cloud sync
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConnectionState {
+    /// Not connected to Turso Cloud (local-only mode)
+    Disconnected,
+    /// Currently attempting to establish cloud connection
+    Connecting,
+    /// Successfully connected to Turso Cloud
+    Connected,
+    /// Connection error (includes error message)
+    Error(String),
+}
 
 /// Database manager that handles Turso Cloud sync
 pub struct DbManager {
@@ -25,60 +40,115 @@ pub struct DbManager {
     db: Database,
     /// Active connection to the database
     conn: Connection,
+    /// Current connection state for cloud sync
+    connection_state: Arc<RwLock<ConnectionState>>,
+    /// Turso credentials (stored for deferred connection)
+    turso_url: Option<String>,
+    turso_token: Option<String>,
+    /// Local database path
+    db_path: String,
 }
 
 impl DbManager {
-    /// Creates a new database manager with Turso Cloud sync
+    /// Creates a new database manager with local-first approach
     ///
     /// This function:
     /// 1. Gets the local database path (~/.mountains/mountains.db)
-    /// 2. Reads Turso credentials from environment variables
-    /// 3. Sets up an embedded replica that syncs with Turso Cloud
+    /// 2. Creates a local-only database connection (no cloud blocking)
+    /// 3. Stores Turso credentials for deferred cloud connection
     /// 4. Initializes the database schema
     ///
-    /// The embedded replica approach means:
-    /// - Reads happen from the local database (fast)
-    /// - Writes go to both local and remote (synced automatically)
-    /// - Works offline with automatic sync when connection is restored
-    pub async fn new(data_dir: &PathBuf) -> Result<Self> {
+    /// Cloud connection is established later via establish_cloud_connection().
+    /// This approach ensures instant app startup without waiting for network.
+    pub async fn new_local_first(data_dir: &PathBuf) -> Result<Self> {
         // Get local database path
         let db_path = data_dir.join("mountains.db");
         let db_path_str = db_path
             .to_str()
-            .context("Failed to convert database path to string")?;
+            .context("Failed to convert database path to string")?
+            .to_string();
 
-        // Read Turso configuration from environment
-        let turso_url = env::var("TURSO_DATABASE_URL");
-        let turso_token = env::var("TURSO_AUTH_TOKEN");
+        // Read Turso configuration from environment (don't use yet)
+        let turso_url = env::var("TURSO_DATABASE_URL").ok();
+        let turso_token = env::var("TURSO_AUTH_TOKEN").ok();
 
-        // Create database connection based on whether Turso credentials are available
-        let db = match (turso_url, turso_token) {
-            (Ok(url), Ok(token)) => {
-                // Both credentials available - use embedded replica with cloud sync
-                Builder::new_remote_replica(db_path_str, url, token)
-                    .sync_interval(Duration::from_secs(300)) // Sync every 5 minutes
-                    .build()
-                    .await
-                    .context("Failed to create Turso embedded replica")?
-            }
-            _ => {
-                // Missing credentials - use local-only database
-                Builder::new_local(db_path_str)
-                    .build()
-                    .await
-                    .context("Failed to create local database")?
-            }
-        };
+        // Always create local-only database first (instant startup)
+        let db = Builder::new_local(&db_path_str)
+            .build()
+            .await
+            .context("Failed to create local database")?;
 
         // Get connection from database
         let conn = db.connect().context("Failed to connect to database")?;
 
-        let mut manager = Self { db, conn };
+        let mut manager = Self {
+            db,
+            conn,
+            connection_state: Arc::new(RwLock::new(ConnectionState::Disconnected)),
+            turso_url,
+            turso_token,
+            db_path: db_path_str,
+        };
 
         // Initialize database schema
         manager.init_schema().await?;
 
         Ok(manager)
+    }
+
+    /// Establishes cloud connection to Turso in the background
+    ///
+    /// This function should be called after new_local_first() in a background task.
+    /// It replaces the local-only database with an embedded replica that syncs with Turso.
+    ///
+    /// If credentials are not available, this is a no-op.
+    /// If connection fails, state is set to Error but the app continues working locally.
+    pub async fn establish_cloud_connection(&mut self) {
+        // Check if we have Turso credentials
+        let (url, token) = match (&self.turso_url, &self.turso_token) {
+            (Some(u), Some(t)) => (u.clone(), t.clone()),
+            _ => {
+                // No credentials - stay in Disconnected state
+                return;
+            }
+        };
+
+        // Set state to Connecting
+        *self.connection_state.write().await = ConnectionState::Connecting;
+
+        // Try to create remote replica
+        match Builder::new_remote_replica(&self.db_path, url, token)
+            .sync_interval(Duration::from_secs(300)) // Sync every 5 minutes
+            .build()
+            .await
+        {
+            Ok(new_db) => {
+                // Successfully created cloud connection
+                self.db = new_db;
+
+                // Get new connection
+                match self.db.connect() {
+                    Ok(new_conn) => {
+                        self.conn = new_conn;
+                        *self.connection_state.write().await = ConnectionState::Connected;
+                    }
+                    Err(e) => {
+                        *self.connection_state.write().await =
+                            ConnectionState::Error(format!("Failed to connect: {}", e));
+                    }
+                }
+            }
+            Err(e) => {
+                // Failed to establish cloud connection - stay local
+                *self.connection_state.write().await =
+                    ConnectionState::Error(format!("Failed to create replica: {}", e));
+            }
+        }
+    }
+
+    /// Returns the current connection state
+    pub async fn get_connection_state(&self) -> ConnectionState {
+        self.connection_state.read().await.clone()
     }
 
     /// Initializes the database schema
@@ -326,7 +396,16 @@ impl DbManager {
     /// This is called after save operations to ensure changes are synced promptly.
     /// Errors are silently ignored since sync is a best-effort operation.
     /// Changes are saved locally and will sync when connection is restored.
+    ///
+    /// Only syncs if connection state is Connected.
     async fn sync(&self) {
+        // Only sync if we're connected to Turso
+        let state = self.connection_state.read().await;
+        if *state != ConnectionState::Connected {
+            return; // Skip sync if not connected
+        }
+        drop(state); // Release lock before sync
+
         let _ = self.db.sync().await; // Ignore sync errors - best effort
     }
 
@@ -337,7 +416,15 @@ impl DbManager {
     /// this returns a Result to allow the caller to handle errors if needed.
     ///
     /// Returns Ok(()) on successful sync, or an error if sync fails.
+    /// Returns early (no error) if not connected to cloud.
     pub async fn sync_now(&self) -> Result<()> {
+        // Only sync if we're connected to Turso
+        let state = self.connection_state.read().await;
+        if *state != ConnectionState::Connected {
+            return Ok(()); // Skip sync if not connected, but don't error
+        }
+        drop(state); // Release lock before sync
+
         self.db
             .sync()
             .await

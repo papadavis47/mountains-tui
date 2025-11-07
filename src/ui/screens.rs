@@ -1,5 +1,3 @@
-/// Screen rendering logic for the Mountains Food Tracker
-///
 /// This module contains all the UI rendering functions for different screens.
 /// Each screen is responsible for drawing its own interface using ratatui widgets.
 ///
@@ -19,18 +17,19 @@ use crate::ui::components::*;
 /// Renders the home screen showing all available daily logs
 ///
 /// The home screen displays:
-/// - Application title
+/// - Application title with sync status
 /// - List of existing daily logs with food entry counts
 /// - Help text with keyboard shortcuts
 ///
 /// The `&mut` parameter for list_state allows the function to modify
 /// which item is currently selected in the list.
-pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut ListState) {
+pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut ListState, sync_status: &str) {
     // Create the standard three-section layout
     let chunks = create_standard_layout(f.area());
 
-    // Render title
-    render_title(f, chunks[0], "Mountains - A Trail Running Training Logger");
+    // Render title with sync status
+    let title = format!("Mountains - A Trail Running Training Logger {}", sync_status);
+    render_title(f, chunks[0], &title);
 
     // Create the list of daily logs
     // The items vector holds each list item to be displayed
@@ -79,11 +78,11 @@ pub fn render_home_screen(f: &mut Frame, state: &AppState, list_state: &mut List
 /// Renders the daily view screen for a specific date
 ///
 /// This screen shows:
-/// - Date title
+/// - Date title with sync status
 /// - Measurements (weight and waist)
 /// - List of food entries
 /// - Help text with available actions
-pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state: &mut ListState) {
+pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state: &mut ListState, sync_status: &str) {
     // Create a more complex layout that includes space for strength & mobility and notes
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -98,10 +97,11 @@ pub fn render_daily_view_screen(f: &mut Frame, state: &AppState, food_list_state
         ])
         .split(f.area());
 
-    // Render title with the selected date
+    // Render title with the selected date and sync status
     let title = format!(
-        "Mountains Training Log - {}",
-        state.selected_date.format("%B %d, %Y")
+        "Mountains Training Log - {} {}",
+        state.selected_date.format("%B %d, %Y"),
+        sync_status
     );
     render_title(f, chunks[0], &title);
 

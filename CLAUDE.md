@@ -171,7 +171,17 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Delete Day Functionality)
+### Latest Session (Offline-First Startup with Deferred Turso Sync)
+- ✅ **Instant startup** - app launches immediately without waiting for cloud connection
+- ✅ **Offline-first architecture** - local database initializes first, cloud connects in background
+- ✅ **Background sync** - Turso Cloud connection established asynchronously after app starts
+- ✅ **Connection state tracking** - real-time sync status monitoring (Disconnected, Connecting, Connected, Error)
+- ✅ **UI status indicator** - sync status displayed in title bars (⚪ Offline, 🔄 Connecting..., ✓ Synced, ⚠️ Sync Error)
+- ✅ **Graceful degradation** - sync operations skip when offline, app works fully offline
+- ✅ **Arc<RwLock<>> wrapping** - thread-safe shared access to DbManager for background tasks
+- ✅ **Zero startup delay** - eliminates network wait time that previously blocked UI initialization
+
+### Previous Session (Delete Day Functionality)
 - ✅ **Full CRUD functionality** - added ability to delete entire days
 - ✅ **Delete from Home screen** - select a day and press 'D' to delete
 - ✅ **Confirmation prompt** - "Are you sure?" screen with Y/n confirmation
@@ -234,11 +244,14 @@ Feeling strong today. Good hike in the morning.
 - **App struct** - Main application coordinator managing state, database, and UI
 - **State management** - AppScreen enum for view routing (17 different screens)
 - **Dual persistence** - libsql database (primary) + markdown files (backup)
-- **Cloud sync** - Background sync with Turso Cloud, local-first approach
+- **Offline-first design** - Local database initializes instantly, cloud connection deferred to background
+- **Cloud sync** - Background sync with Turso Cloud via tokio task, graceful offline handling
+- **Connection state tracking** - Real-time monitoring of Turso Cloud connection status
 - **Async architecture** - Fully async event loop and database operations using tokio
+- **Thread-safe database** - Arc<RwLock<DbManager>> for shared access across async tasks
 - **Input handling** - Specialized handlers for text, numeric, integer, and multi-line input
 - **Modular design** - Separated concerns (models, events, ui, database, file management)
-- **Responsive UI** - Terminal size adaptation with ratatui layout system
+- **Responsive UI** - Terminal size adaptation with ratatui layout system, live sync status display
 - **Data integrity** - Database transactions for atomic operations
 - **Error handling** - anyhow for ergonomic error propagation
 
@@ -247,7 +260,8 @@ Feeling strong today. Good hike in the morning.
 - **DailyLog** - Main data model with food_entries, measurements, sokay_entries, strength_mobility, notes
 - **AppState** - Application state with daily_logs cache and current screen/selection
 - **InputHandler** - Cursor position tracking and input validation
-- **DbManager** - Async database operations with automatic sync
+- **DbManager** - Async database operations with deferred cloud connection and state tracking
+- **ConnectionState** - Enum tracking sync status (Disconnected, Connecting, Connected, Error)
 - **FileManager** - Markdown serialization/deserialization for backups
 
 # important-instruction-reminders

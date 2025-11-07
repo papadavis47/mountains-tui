@@ -4,9 +4,11 @@ use anyhow::{Context, Result};
 use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::CrosstermBackend, widgets::ListState};
 use std::io;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
-use crate::db_manager::DbManager;
+use crate::db_manager::{ConnectionState, DbManager};
 use crate::events::handlers::{ActionHandler, InputHandler, NavigationHandler};
 use crate::file_manager::FileManager;
 use crate::models::{AppScreen, AppState};
@@ -21,7 +23,7 @@ use crate::ui::screens;
 /// - ListState: UI list selection state
 pub struct App {
     state: AppState,
-    db_manager: DbManager,
+    db_manager: Arc<RwLock<DbManager>>,
     file_manager: FileManager,
     input_handler: InputHandler,
     list_state: ListState,
@@ -29,15 +31,17 @@ pub struct App {
     sokay_list_state: ListState,
     should_quit: bool,
     last_sync_time: Instant,
+    sync_status: String,
 }
 
 impl App {
     /// The following constructor:
     /// 1. Creates the data directory (~/.mountains/)
-    /// 2. Initializes DbManager with Turso Cloud sync
+    /// 2. Initializes DbManager with local-first approach (no cloud blocking)
     /// 3. Creates FileManager for markdown backups
     /// 4. Loads all existing daily logs from the database
     /// 5. Sets up UI state managers
+    /// 6. Spawns background task to establish Turso Cloud connection
 
     /// The Result<Self, anyhow::Error> return type allows proper error handling
     /// if database or file operations fail during initialization.
@@ -51,8 +55,8 @@ impl App {
                 .context("Failed to create .mountains directory")?;
         }
 
-        // Initialize database manager with Turso Cloud sync
-        let db_manager = DbManager::new(&mountains_dir).await?;
+        // Initialize database manager with local-first approach (instant startup)
+        let db_manager = DbManager::new_local_first(&mountains_dir).await?;
 
         // Initialize file manager for markdown backups
         let file_manager = FileManager::new()?;
@@ -61,6 +65,16 @@ impl App {
 
         // Load all daily logs from the database (primary source of truth)
         state.daily_logs = db_manager.load_all_daily_logs().await?;
+
+        // Wrap db_manager in Arc<RwLock> for shared access
+        let db_manager = Arc::new(RwLock::new(db_manager));
+
+        // Spawn background task to establish Turso Cloud connection
+        let db_manager_clone = Arc::clone(&db_manager);
+        tokio::spawn(async move {
+            let mut db = db_manager_clone.write().await;
+            db.establish_cloud_connection().await;
+        });
 
         Ok(Self {
             state,
@@ -72,6 +86,7 @@ impl App {
             sokay_list_state: ListState::default(),
             should_quit: false,
             last_sync_time: Instant::now(),
+            sync_status: "🔄 Connecting...".to_string(),
         })
     }
 
@@ -90,6 +105,9 @@ impl App {
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> Result<()> {
         loop {
+            // Update sync status before drawing
+            self.update_sync_status().await;
+
             // Draw the current UI state
             terminal.draw(|f| self.ui(f))?;
 
@@ -155,14 +173,17 @@ impl App {
         match key {
             KeyCode::Enter => {
                 // Save the food entry and return to daily view
-                ActionHandler::save_food_entry(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                    None, // No notes support in current implementation
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::save_food_entry(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                        None, // No notes support in current implementation
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -184,14 +205,17 @@ impl App {
         match key {
             KeyCode::Enter => {
                 // Update the existing food entry
-                ActionHandler::update_food_entry(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    food_index,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_food_entry(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        food_index,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -212,13 +236,16 @@ impl App {
         match key {
             KeyCode::Enter => {
                 // Save the weight measurement
-                ActionHandler::update_weight(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_weight(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -237,13 +264,16 @@ impl App {
     async fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                ActionHandler::update_waist(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_waist(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -276,13 +306,16 @@ impl App {
         match key {
             KeyCode::Enter => {
                 // Save the strength & mobility and return to daily view
-                ActionHandler::update_strength_mobility(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_strength_mobility(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -315,13 +348,16 @@ impl App {
 
         match key {
             KeyCode::Enter => {
-                ActionHandler::update_notes(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_notes(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -340,13 +376,16 @@ impl App {
     async fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                ActionHandler::update_miles(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_miles(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -365,13 +404,16 @@ impl App {
     async fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                ActionHandler::update_elevation(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_elevation(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -416,13 +458,16 @@ impl App {
     async fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                ActionHandler::save_sokay_entry(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::save_sokay_entry(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -441,14 +486,17 @@ impl App {
     async fn handle_edit_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                ActionHandler::update_sokay_entry(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    sokay_index,
-                    self.input_handler.input_buffer.clone(),
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::update_sokay_entry(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        sokay_index,
+                        self.input_handler.input_buffer.clone(),
+                    )
+                    .await?;
+                }
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::SokayView;
             }
@@ -572,10 +620,10 @@ impl App {
     fn ui(&mut self, f: &mut Frame) {
         match self.state.current_screen {
             AppScreen::Home => {
-                screens::render_home_screen(f, &self.state, &mut self.list_state);
+                screens::render_home_screen(f, &self.state, &mut self.list_state, &self.sync_status);
             }
             AppScreen::DailyView => {
-                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state);
+                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state, &self.sync_status);
             }
             AppScreen::AddFood => {
                 screens::render_add_food_screen(
@@ -776,13 +824,16 @@ impl App {
     /// This method also handles updating the selection state after deletion.
     async fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
-            ActionHandler::delete_food_entry(
-                &mut self.state,
-                &mut self.db_manager,
-                &self.file_manager,
-                selected_index,
-            )
-            .await?;
+            {
+                let mut db = self.db_manager.write().await;
+                ActionHandler::delete_food_entry(
+                    &mut self.state,
+                    &mut *db,
+                    &self.file_manager,
+                    selected_index,
+                )
+                .await?;
+            }
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -862,13 +913,16 @@ impl App {
     /// Deletes a sokay entry.
     async fn handle_delete_sokay(&mut self) -> Result<()> {
         if let Some(selected_index) = self.sokay_list_state.selected() {
-            ActionHandler::delete_sokay_entry(
-                &mut self.state,
-                &mut self.db_manager,
-                &self.file_manager,
-                selected_index,
-            )
-            .await?;
+            {
+                let mut db = self.db_manager.write().await;
+                ActionHandler::delete_sokay_entry(
+                    &mut self.state,
+                    &mut *db,
+                    &self.file_manager,
+                    selected_index,
+                )
+                .await?;
+            }
 
             // Update selection after deletion
             if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
@@ -907,13 +961,16 @@ impl App {
                 // Confirmed - delete the day
                 let date_to_delete = self.state.selected_date;
 
-                ActionHandler::delete_daily_log(
-                    &mut self.state,
-                    &mut self.db_manager,
-                    &self.file_manager,
-                    date_to_delete,
-                )
-                .await?;
+                {
+                    let mut db = self.db_manager.write().await;
+                    ActionHandler::delete_daily_log(
+                        &mut self.state,
+                        &mut *db,
+                        &self.file_manager,
+                        date_to_delete,
+                    )
+                    .await?;
+                }
 
                 // Return to home screen
                 self.state.current_screen = AppScreen::Home;
@@ -955,7 +1012,10 @@ impl App {
         }
 
         // Perform the sync (now async)
-        self.db_manager.sync_now().await?;
+        {
+            let db = self.db_manager.read().await;
+            db.sync_now().await?;
+        }
 
         // Update last sync time
         self.last_sync_time = Instant::now();
@@ -981,5 +1041,18 @@ impl App {
                 | AppScreen::EditStrengthMobility
                 | AppScreen::EditNotes
         )
+    }
+
+    /// Updates the sync status field based on current connection state
+    async fn update_sync_status(&mut self) {
+        let db = self.db_manager.read().await;
+        let state = db.get_connection_state().await;
+
+        self.sync_status = match state {
+            ConnectionState::Disconnected => "⚪ Offline".to_string(),
+            ConnectionState::Connecting => "🔄 Connecting...".to_string(),
+            ConnectionState::Connected => "✓ Synced".to_string(),
+            ConnectionState::Error(_) => "⚠️ Sync Error".to_string(),
+        };
     }
 }
