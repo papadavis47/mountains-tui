@@ -1,19 +1,8 @@
-/// Event handling logic for the Mountains Food Tracker
-///
-/// This module contains all keyboard and input event handling functions.
-/// By separating event handling from the main application logic, we make
-/// the code more modular and easier to understand.
-///
-/// The main principle here is that each event handler focuses on one specific
-/// type of user interaction, making the code easier to maintain and debug.
-use crossterm::event::KeyCode;
-
 use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
 use crate::models::{AppScreen, AppState, FoodEntry};
+use crossterm::event::KeyCode;
 
-/// Handles keyboard input for text editing operations
-///
 /// This struct manages the state needed for text input, including:
 /// - The text buffer being edited
 /// - Current cursor position within the text

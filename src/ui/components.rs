@@ -1,7 +1,5 @@
-/// Reusable UI components and utilities for the Mountains Food Tracker
-///
 /// This module contains helper functions and reusable components that are used
-/// across multiple screens. This follows the DRY (Don't Repeat Yourself) principle.
+/// across multiple screens.
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},

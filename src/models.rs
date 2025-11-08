@@ -36,7 +36,6 @@ impl FoodEntry {
 /// Represents a complete daily log with food entries and measurements
 ///
 /// This is the core data structure that represents one day's worth of data.
-/// It includes food tracking and body measurements for health monitoring.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DailyLog {
     /// The date this log represents

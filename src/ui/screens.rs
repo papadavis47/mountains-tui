@@ -47,7 +47,7 @@ pub fn render_home_screen(
             "No training logs yet. Press Enter to create one for today.",
         )]
     } else {
-        // Map each daily log to a list item showing date and food count
+        // Map each daily log to a list item showing date and count
         // The `map` iterator adapter transforms each log into a ListItem
         state
             .daily_logs
@@ -88,8 +88,8 @@ pub fn render_home_screen(
 /// This screen shows:
 /// - Date title with sync status
 /// - Measurements (weight and waist)
-/// - List of food entries
 /// - Running activity (miles and elevation)
+/// - List of food entries
 /// - Sokay entries (unhealthy choices tracker)
 /// - Strength & mobility exercises
 /// - Daily notes

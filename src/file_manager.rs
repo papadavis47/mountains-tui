@@ -85,11 +85,6 @@ impl FileManager {
     /// Converts a DailyLog struct to markdown format
     ///
     /// This method creates a human-readable markdown representation of the daily log.
-    /// The format includes:
-    /// - A main title with the date
-    /// - A measurements section (if any measurements exist)
-    /// - A food section (if any food entries exist)
-    /// - A notes section (if notes exist)
     ///
     /// The markdown format allows users to view and edit their data in any text editor.
     fn daily_log_to_markdown(&self, log: &DailyLog) -> String {
