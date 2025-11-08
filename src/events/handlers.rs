@@ -855,3 +855,57 @@ impl ActionHandler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod navigation_handler {
+        use super::*;
+
+        #[test]
+        fn test_move_selection_down_empty_list() {
+            let result = NavigationHandler::move_selection_down(None, 0);
+            assert_eq!(result, None);
+        }
+
+        #[test]
+        fn test_move_selection_down_single_item() {
+            // Starting at None should select the first item
+            let result = NavigationHandler::move_selection_down(None, 1);
+            assert_eq!(result, Some(0));
+
+            // Moving down from the only item should wrap to top
+            let result = NavigationHandler::move_selection_down(Some(0), 1);
+            assert_eq!(result, Some(0));
+        }
+
+        #[test]
+        fn test_move_selection_down_multiple_items() {
+            let list_len = 5;
+
+            // Starting at None should select first item
+            let result = NavigationHandler::move_selection_down(None, list_len);
+            assert_eq!(result, Some(0));
+
+            // Normal navigation down
+            let result = NavigationHandler::move_selection_down(Some(0), list_len);
+            assert_eq!(result, Some(1));
+
+            let result = NavigationHandler::move_selection_down(Some(1), list_len);
+            assert_eq!(result, Some(2));
+
+            let result = NavigationHandler::move_selection_down(Some(3), list_len);
+            assert_eq!(result, Some(4));
+        }
+
+        #[test]
+        fn test_move_selection_down_wraparound() {
+            let list_len = 3;
+
+            // At the bottom (index 2), should wrap to top (index 0)
+            let result = NavigationHandler::move_selection_down(Some(2), list_len);
+            assert_eq!(result, Some(0));
+        }
+    }
+}
