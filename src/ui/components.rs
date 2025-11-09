@@ -4,7 +4,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Padding, Paragraph},
 };
 
 /// Creates the standard title styling used throughout the application
@@ -35,7 +35,7 @@ pub fn create_highlight_style() -> Style {
 /// Creates a standard three-section layout used by many screens
 ///
 /// This function returns a Layout with three sections:
-/// - Top: Fixed height for titles (3 lines)
+/// - Top: Fixed height for titles (5 lines to accommodate padding)
 /// - Middle: Expandable content area
 /// - Bottom: Fixed height for help text (3 lines)
 ///
@@ -47,7 +47,7 @@ pub fn create_standard_layout(area: Rect) -> std::rc::Rc<[Rect]> {
         .direction(Direction::Vertical)
         .margin(1) // 1-character margin on all sides
         .constraints([
-            Constraint::Length(3), // Title area
+            Constraint::Length(5), // Title area (increased for vertical padding)
             Constraint::Min(0),    // Content area (takes remaining space)
             Constraint::Length(3), // Help area
         ])
@@ -57,11 +57,16 @@ pub fn create_standard_layout(area: Rect) -> std::rc::Rc<[Rect]> {
 /// Renders a title widget with the application's standard styling
 ///
 /// This function takes a title string and renders it in a bordered box
-/// with the standard cyan/bold styling.
+/// with the standard cyan/bold styling, rounded borders, and padding on all sides.
 pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
     let title_widget = Paragraph::new(title)
         .style(create_title_style())
-        .block(Block::default().borders(Borders::ALL));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .padding(Padding::uniform(1))
+        );
     f.render_widget(title_widget, area);
 }
 

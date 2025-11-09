@@ -105,7 +105,7 @@ pub fn render_daily_view_screen(
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3), // Title
+            Constraint::Length(5), // Title (increased for vertical padding)
             Constraint::Length(3), // Measurements (Weight, Waist)
             Constraint::Length(3), // Running (Miles, Elevation)
             Constraint::Min(4),    // Food list
@@ -566,7 +566,7 @@ pub fn render_edit_strength_mobility_screen(
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3), // Title
+            Constraint::Length(5), // Title (increased for vertical padding)
             Constraint::Min(8),    // Strength & Mobility area (larger than normal input)
             Constraint::Length(4), // Help text (slightly larger for multi-line help)
         ])
@@ -614,7 +614,7 @@ pub fn render_edit_notes_screen(
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3), // Title
+            Constraint::Length(5), // Title (increased for vertical padding)
             Constraint::Min(8),    // Notes area (larger than normal input)
             Constraint::Length(4), // Help text (slightly larger for multi-line help)
         ])

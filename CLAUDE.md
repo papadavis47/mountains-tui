@@ -173,7 +173,12 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Offline-First Startup with Deferred Turso Sync)
+### Latest Session (UI Styling Enhancements)
+- ✅ **Rounded borders** - title blocks now use smooth, curved corners instead of sharp edges
+- ✅ **Vertical padding** - increased spacing above and below title text for better visual balance
+- ✅ **Enhanced visual polish** - improved overall aesthetic with BorderType::Rounded and Padding::vertical
+
+### Previous Session (Offline-First Startup with Deferred Turso Sync)
 - ✅ **Instant startup** - app launches immediately without waiting for cloud connection
 - ✅ **Offline-first architecture** - local database initializes first, cloud connects in background
 - ✅ **Background sync** - Turso Cloud connection established asynchronously after app starts
