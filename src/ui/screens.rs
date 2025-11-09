@@ -18,7 +18,7 @@ use crate::ui::components::*;
 ///
 /// The home screen displays:
 /// - Application title with sync status
-/// - List of existing daily logs with food entry counts
+/// - List of existing daily logs
 /// - Help text with keyboard shortcuts
 ///
 /// The `&mut` parameter for list_state allows the function to modify
@@ -54,9 +54,7 @@ pub fn render_home_screen(
             .iter()
             .map(|log| {
                 let date_str = log.date.format("%B %d, %Y").to_string();
-                let food_count = log.food_entries.len();
-                let summary = format!("{} ({} food items)", date_str, food_count);
-                ListItem::new(summary)
+                ListItem::new(date_str)
             })
             .collect() // Collect the iterator results into a Vec
     };
@@ -256,12 +254,8 @@ fn render_food_list_section(
                 .iter()
                 .enumerate()
                 .map(|(i, entry)| {
-                    // Format each entry with its number and optional notes
-                    let display = if let Some(notes) = &entry.notes {
-                        format!("{}. {} - {}", i + 1, entry.name, notes)
-                    } else {
-                        format!("{}. {}", i + 1, entry.name)
-                    };
+                    // Format each entry with its number
+                    let display = format!("{}. {}", i + 1, entry.name);
                     ListItem::new(display)
                 })
                 .collect()

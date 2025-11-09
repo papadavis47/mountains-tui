@@ -69,11 +69,22 @@ impl App {
         // Wrap db_manager in Arc<RwLock> for shared access
         let db_manager = Arc::new(RwLock::new(db_manager));
 
-        // Spawn background task to establish Turso Cloud connection
+        // Spawn background task to upgrade to remote replica
+        // This runs on every startup to ensure cloud sync is active
         let db_manager_clone = Arc::clone(&db_manager);
+        let mountains_dir_clone = mountains_dir.clone();
         tokio::spawn(async move {
-            let mut db = db_manager_clone.write().await;
-            db.establish_cloud_connection().await;
+            // Check if we have credentials
+            if let (Ok(url), Ok(token)) = (
+                std::env::var("TURSO_DATABASE_URL"),
+                std::env::var("TURSO_AUTH_TOKEN"),
+            ) {
+                let db_path = mountains_dir_clone.join("mountains.db");
+                if let Some(db_path_str) = db_path.to_str() {
+                    let mut db = db_manager_clone.write().await;
+                    let _ = db.upgrade_to_remote_replica(db_path_str, url, token).await;
+                }
+            }
         });
 
         Ok(Self {
@@ -86,7 +97,7 @@ impl App {
             sokay_list_state: ListState::default(),
             should_quit: false,
             last_sync_time: Instant::now(),
-            sync_status: "🔄 Connecting...".to_string(),
+            sync_status: String::new(), // Will be set on first render
         })
     }
 
@@ -180,7 +191,6 @@ impl App {
                         &mut *db,
                         &self.file_manager,
                         self.input_handler.input_buffer.clone(),
-                        None, // No notes support in current implementation
                     )
                     .await?;
                 }
@@ -1050,7 +1060,6 @@ impl App {
 
         self.sync_status = match state {
             ConnectionState::Disconnected => "⚪ Offline".to_string(),
-            ConnectionState::Connecting => "🔄 Connecting...".to_string(),
             ConnectionState::Connected => "✓ Synced".to_string(),
             ConnectionState::Error(_) => "⚠️ Sync Error".to_string(),
         };

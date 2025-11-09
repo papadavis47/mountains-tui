@@ -112,11 +112,7 @@ impl FileManager {
         if !log.food_entries.is_empty() {
             content.push_str("## Food\n");
             for entry in &log.food_entries {
-                content.push_str(&format!("- **{}**", entry.name));
-                if let Some(notes) = &entry.notes {
-                    content.push_str(&format!(" - {}", notes));
-                }
-                content.push('\n');
+                content.push_str(&format!("- {}\n", entry.name));
             }
             content.push('\n'); // Add blank line after section
         }

@@ -442,10 +442,9 @@ impl ActionHandler {
         db_manager: &mut DbManager,
         file_manager: &FileManager,
         food_name: String,
-        notes: Option<String>,
     ) -> anyhow::Result<()> {
         if !food_name.is_empty() {
-            let food_entry = FoodEntry::new(food_name, notes);
+            let food_entry = FoodEntry::new(food_name);
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_food_entry(food_entry);
 

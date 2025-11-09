@@ -135,9 +135,9 @@ Data storage:
 
 ## Food
 
-- **Oatmeal** - with blueberries
-- **Chicken Salad**
-- **Green Tea**
+- Oatmeal
+- Chicken Salad
+- Green Tea
 
 ## Running
 
@@ -173,7 +173,21 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (UI Styling Enhancements)
+### Latest Session (Startup Performance Fix)
+- ✅ **Fixed startup delay** - removed blocking remote replica connection that was causing 1-2 second hang
+- ✅ **True offline-first startup** - always begins with local database, regardless of replica metadata
+- ✅ **Simplified initialization** - eliminated complex conditional logic that was trying to connect to Turso Cloud synchronously
+- ✅ **Background-only cloud sync** - all remote replica upgrades now happen exclusively in background task
+- ✅ **Instant launch** - app now starts immediately as designed, cloud connection happens asynchronously
+
+### Previous Session (Data Model Cleanup - Remove Food Entry Notes)
+- ✅ **Removed unused notes field from FoodEntry** - legacy from when app was just a food tracker
+- ✅ **Simplified data model** - food entries now just store name (notes belong to daily log only)
+- ✅ **Database migration** - automatic removal of notes column from food_entries table
+- ✅ **Updated markdown export** - food items display as simple list items
+- ✅ **Code cleanup** - removed dead code and unused parameters throughout the codebase
+
+### Previous Session (UI Styling Enhancements)
 - ✅ **Rounded borders** - title blocks now use smooth, curved corners instead of sharp edges
 - ✅ **Vertical padding** - increased spacing above and below title text for better visual balance
 - ✅ **Enhanced visual polish** - improved overall aesthetic with BorderType::Rounded and Padding::vertical

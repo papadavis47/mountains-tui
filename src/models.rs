@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 ///
 /// Each food entry has:
 /// - name: Required name of the food item
-/// - notes: Optional additional notes about the food
 ///
 /// The derive attributes provide useful functionality:
 /// - Debug: Allows printing the struct for debugging
@@ -19,17 +18,14 @@ use serde::{Deserialize, Serialize};
 pub struct FoodEntry {
     /// The name of the food item (e.g., "Chicken Salad", "Apple")
     pub name: String,
-    /// Optional notes about the food (e.g., preparation method, portion size)
-    pub notes: Option<String>,
 }
 
 impl FoodEntry {
-    /// Creates a new food entry with the given name and optional notes
+    /// Creates a new food entry with the given name
     ///
     /// This constructor function provides a clean way to create FoodEntry instances.
-    /// Using Option<String> for notes allows for optional data - None means no notes.
-    pub fn new(name: String, notes: Option<String>) -> Self {
-        Self { name, notes }
+    pub fn new(name: String) -> Self {
+        Self { name }
     }
 }
 

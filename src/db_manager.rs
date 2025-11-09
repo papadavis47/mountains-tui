@@ -1,5 +1,3 @@
-/// Database manager for Turso Cloud integration
-///
 /// This module handles all database operations using libsql with Turso Cloud.
 /// It implements an embedded replica strategy where:
 /// - Local database file is stored in ~/.mountains/mountains.db
@@ -9,14 +7,12 @@
 /// The database schema consists of two tables:
 /// 1. daily_logs: Stores date, measurements, and notes for each day
 /// 2. food_entries: Stores individual food items linked to daily logs
-
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use libsql::{Builder, Connection, Database};
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
 
 use crate::models::{DailyLog, FoodEntry};
@@ -26,8 +22,6 @@ use crate::models::{DailyLog, FoodEntry};
 pub enum ConnectionState {
     /// Not connected to Turso Cloud (local-only mode)
     Disconnected,
-    /// Currently attempting to establish cloud connection
-    Connecting,
     /// Successfully connected to Turso Cloud
     Connected,
     /// Connection error (includes error message)
@@ -42,24 +36,13 @@ pub struct DbManager {
     conn: Connection,
     /// Current connection state for cloud sync
     connection_state: Arc<RwLock<ConnectionState>>,
-    /// Turso credentials (stored for deferred connection)
-    turso_url: Option<String>,
-    turso_token: Option<String>,
-    /// Local database path
-    db_path: String,
 }
 
 impl DbManager {
-    /// Creates a new database manager with local-first approach
+    /// Creates a new database manager with instant startup
     ///
-    /// This function:
-    /// 1. Gets the local database path (~/.mountains/mountains.db)
-    /// 2. Creates a local-only database connection (no cloud blocking)
-    /// 3. Stores Turso credentials for deferred cloud connection
-    /// 4. Initializes the database schema
-    ///
-    /// Cloud connection is established later via establish_cloud_connection().
-    /// This approach ensures instant app startup without waiting for network.
+    /// Always starts with a local connection for instant startup.
+    /// Cloud sync is handled in the background via upgrade_to_remote_replica().
     pub async fn new_local_first(data_dir: &PathBuf) -> Result<Self> {
         // Get local database path
         let db_path = data_dir.join("mountains.db");
@@ -68,83 +51,97 @@ impl DbManager {
             .context("Failed to convert database path to string")?
             .to_string();
 
-        // Read Turso configuration from environment (don't use yet)
-        let turso_url = env::var("TURSO_DATABASE_URL").ok();
-        let turso_token = env::var("TURSO_AUTH_TOKEN").ok();
+        // Always start with local connection for instant startup
+        let db = Builder::new_local(&db_path_str).build().await?;
+        let conn = db.connect()?;
 
-        // Always create local-only database first (instant startup)
-        let db = Builder::new_local(&db_path_str)
-            .build()
-            .await
-            .context("Failed to create local database")?;
+        // Check if we have credentials for cloud sync (will be handled in background)
+        let has_credentials = env::var("TURSO_DATABASE_URL").is_ok()
+            && env::var("TURSO_AUTH_TOKEN").is_ok();
 
-        // Get connection from database
-        let conn = db.connect().context("Failed to connect to database")?;
+        let state = if has_credentials {
+            ConnectionState::Disconnected // Will upgrade in background
+        } else {
+            ConnectionState::Disconnected // No credentials available
+        };
 
         let mut manager = Self {
             db,
             conn,
-            connection_state: Arc::new(RwLock::new(ConnectionState::Disconnected)),
-            turso_url,
-            turso_token,
-            db_path: db_path_str,
+            connection_state: Arc::new(RwLock::new(state)),
         };
 
-        // Initialize database schema
+        // Always initialize schema (needed even for in-memory placeholder)
         manager.init_schema().await?;
 
         Ok(manager)
     }
 
-    /// Establishes cloud connection to Turso in the background
+    /// Upgrades local database to remote replica in the background
     ///
-    /// This function should be called after new_local_first() in a background task.
-    /// It replaces the local-only database with an embedded replica that syncs with Turso.
+    /// This should be called after new_local_first() if credentials are available
+    /// and the initial connection was local-only.
     ///
-    /// If credentials are not available, this is a no-op.
-    /// If connection fails, state is set to Error but the app continues working locally.
-    pub async fn establish_cloud_connection(&mut self) {
-        // Check if we have Turso credentials
-        let (url, token) = match (&self.turso_url, &self.turso_token) {
-            (Some(u), Some(t)) => (u.clone(), t.clone()),
-            _ => {
-                // No credentials - stay in Disconnected state
-                return;
+    /// Note: This recreates the database as a remote replica since libsql doesn't
+    /// support converting an existing local database to a remote replica.
+    pub async fn upgrade_to_remote_replica(&mut self, db_path_str: &str, url: String, token: String) -> Result<()> {
+        use std::path::Path;
+
+        *self.connection_state.write().await = ConnectionState::Disconnected;
+
+        // Check if metadata file exists (indicating this is already a replica)
+        let metadata_path = format!("{}-info", db_path_str);
+        let is_already_replica = Path::new(&metadata_path).exists();
+
+        if !is_already_replica {
+            // Delete the local database files to start fresh
+            // libsql cannot convert a local database to a remote replica
+            let db_path = Path::new(db_path_str);
+            if db_path.exists() {
+                std::fs::remove_file(db_path).ok();
             }
-        };
+            // Also remove WAL and SHM files if they exist
+            let wal_path = format!("{}-wal", db_path_str);
+            let shm_path = format!("{}-shm", db_path_str);
+            std::fs::remove_file(&wal_path).ok();
+            std::fs::remove_file(&shm_path).ok();
+        }
 
-        // Set state to Connecting
-        *self.connection_state.write().await = ConnectionState::Connecting;
-
-        // Try to create remote replica
-        match Builder::new_remote_replica(&self.db_path, url, token)
-            .sync_interval(Duration::from_secs(300)) // Sync every 5 minutes
+        // Create or connect to remote replica
+        match Builder::new_remote_replica(db_path_str, url, token)
             .build()
             .await
         {
             Ok(new_db) => {
-                // Successfully created cloud connection
-                self.db = new_db;
-
-                // Get new connection
-                match self.db.connect() {
+                match new_db.connect() {
                     Ok(new_conn) => {
+                        // Replace the database connection
+                        self.db = new_db;
                         self.conn = new_conn;
+
+                        // Only reinitialize schema if we deleted the database
+                        if !is_already_replica {
+                            self.init_schema().await?;
+                        }
+
                         *self.connection_state.write().await = ConnectionState::Connected;
+                        Ok(())
                     }
                     Err(e) => {
                         *self.connection_state.write().await =
                             ConnectionState::Error(format!("Failed to connect: {}", e));
+                        Err(e.into())
                     }
                 }
             }
             Err(e) => {
-                // Failed to establish cloud connection - stay local
                 *self.connection_state.write().await =
                     ConnectionState::Error(format!("Failed to create replica: {}", e));
+                Err(e.into())
             }
         }
     }
+
 
     /// Returns the current connection state
     pub async fn get_connection_state(&self) -> ConnectionState {
@@ -156,14 +153,18 @@ impl DbManager {
     /// Creates tables if they don't exist:
     /// - daily_logs: Primary table for daily records
     /// - food_entries: Food items with foreign key to daily_logs
+    /// - sokay_entries: Sokay items with foreign key to daily_logs
     async fn init_schema(&mut self) -> Result<()> {
-        // Create daily_logs table
+        // Create daily_logs table with all columns
         self.conn
             .execute(
                 "CREATE TABLE IF NOT EXISTS daily_logs (
                     date TEXT PRIMARY KEY,
                     weight REAL,
                     waist REAL,
+                    miles_covered REAL,
+                    elevation_gain INTEGER,
+                    strength_mobility TEXT,
                     notes TEXT
                 )",
                 (),
@@ -178,7 +179,6 @@ impl DbManager {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT NOT NULL,
                     name TEXT NOT NULL,
-                    notes TEXT,
                     FOREIGN KEY (date) REFERENCES daily_logs(date) ON DELETE CASCADE
                 )",
                 (),
@@ -194,23 +194,6 @@ impl DbManager {
             )
             .await
             .context("Failed to create index on food_entries")?;
-
-        // Run migrations to add new columns to daily_logs table
-        // SQLite allows ALTER TABLE ADD COLUMN if the column doesn't exist
-        let _ = self
-            .conn
-            .execute("ALTER TABLE daily_logs ADD COLUMN miles_covered REAL", ())
-            .await; // Ignore error if column already exists
-
-        let _ = self
-            .conn
-            .execute("ALTER TABLE daily_logs ADD COLUMN elevation_gain INTEGER", ())
-            .await; // Ignore error if column already exists
-
-        let _ = self
-            .conn
-            .execute("ALTER TABLE daily_logs ADD COLUMN strength_mobility TEXT", ())
-            .await; // Ignore error if column already exists
 
         // Create sokay_entries table
         self.conn
@@ -269,37 +252,36 @@ impl DbManager {
         .context("Failed to save daily log")?;
 
         // Delete existing food entries for this date
-        tx.execute("DELETE FROM food_entries WHERE date = ?1", [date_str.as_str()])
-            .await
-            .context("Failed to delete old food entries")?;
+        tx.execute(
+            "DELETE FROM food_entries WHERE date = ?1",
+            [date_str.as_str()],
+        )
+        .await
+        .context("Failed to delete old food entries")?;
 
         // Insert all food entries
         for entry in &log.food_entries {
             tx.execute(
-                "INSERT INTO food_entries (date, name, notes) VALUES (?1, ?2, ?3)",
-                libsql::params![
-                    date_str.clone(),
-                    entry.name.clone(),
-                    entry.notes.clone(),
-                ],
+                "INSERT INTO food_entries (date, name) VALUES (?1, ?2)",
+                libsql::params![date_str.clone(), entry.name.clone(),],
             )
             .await
             .context("Failed to insert food entry")?;
         }
 
         // Delete existing sokay entries for this date
-        tx.execute("DELETE FROM sokay_entries WHERE date = ?1", [date_str.as_str()])
-            .await
-            .context("Failed to delete old sokay entries")?;
+        tx.execute(
+            "DELETE FROM sokay_entries WHERE date = ?1",
+            [date_str.as_str()],
+        )
+        .await
+        .context("Failed to delete old sokay entries")?;
 
         // Insert all sokay entries
         for entry in &log.sokay_entries {
             tx.execute(
                 "INSERT INTO sokay_entries (date, entry_text) VALUES (?1, ?2)",
-                libsql::params![
-                    date_str.clone(),
-                    entry.clone(),
-                ],
+                libsql::params![date_str.clone(), entry.clone(),],
             )
             .await
             .context("Failed to insert sokay entry")?;
@@ -346,7 +328,7 @@ impl DbManager {
             let mut food_rows = self
                 .conn
                 .query(
-                    "SELECT name, notes FROM food_entries WHERE date = ?1 ORDER BY id",
+                    "SELECT name FROM food_entries WHERE date = ?1 ORDER BY id",
                     [date_str.as_str()],
                 )
                 .await
@@ -355,8 +337,7 @@ impl DbManager {
             let mut food_entries = Vec::new();
             while let Some(food_row) = food_rows.next().await? {
                 let name: String = food_row.get(0)?;
-                let food_notes: Option<String> = food_row.get(1)?;
-                food_entries.push(FoodEntry::new(name, food_notes));
+                food_entries.push(FoodEntry::new(name));
             }
 
             // Query sokay entries for this date
@@ -448,9 +429,12 @@ impl DbManager {
         let tx = self.conn.transaction().await?;
 
         // Delete the daily_logs record (this will cascade to food_entries and sokay_entries)
-        tx.execute("DELETE FROM daily_logs WHERE date = ?1", [date_str.as_str()])
-            .await
-            .context("Failed to delete daily log")?;
+        tx.execute(
+            "DELETE FROM daily_logs WHERE date = ?1",
+            [date_str.as_str()],
+        )
+        .await
+        .context("Failed to delete daily log")?;
 
         // Commit the transaction
         tx.commit().await.context("Failed to commit transaction")?;
