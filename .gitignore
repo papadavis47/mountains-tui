@@ -20,3 +20,6 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# For notes
+chalk_board.md
