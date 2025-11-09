@@ -4,9 +4,6 @@
 /// - Changes are automatically synced to Turso Cloud
 /// - The app works offline and syncs when connected
 ///
-/// The database schema consists of two tables:
-/// 1. daily_logs: Stores date, measurements, and notes for each day
-/// 2. food_entries: Stores individual food items linked to daily logs
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use libsql::{Builder, Connection, Database};
@@ -56,8 +53,8 @@ impl DbManager {
         let conn = db.connect()?;
 
         // Check if we have credentials for cloud sync (will be handled in background)
-        let has_credentials = env::var("TURSO_DATABASE_URL").is_ok()
-            && env::var("TURSO_AUTH_TOKEN").is_ok();
+        let has_credentials =
+            env::var("TURSO_DATABASE_URL").is_ok() && env::var("TURSO_AUTH_TOKEN").is_ok();
 
         let state = if has_credentials {
             ConnectionState::Disconnected // Will upgrade in background
@@ -84,7 +81,12 @@ impl DbManager {
     ///
     /// Note: This recreates the database as a remote replica since libsql doesn't
     /// support converting an existing local database to a remote replica.
-    pub async fn upgrade_to_remote_replica(&mut self, db_path_str: &str, url: String, token: String) -> Result<()> {
+    pub async fn upgrade_to_remote_replica(
+        &mut self,
+        db_path_str: &str,
+        url: String,
+        token: String,
+    ) -> Result<()> {
         use std::path::Path;
 
         *self.connection_state.write().await = ConnectionState::Disconnected;
@@ -141,7 +143,6 @@ impl DbManager {
             }
         }
     }
-
 
     /// Returns the current connection state
     pub async fn get_connection_state(&self) -> ConnectionState {

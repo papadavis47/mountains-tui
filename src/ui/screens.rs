@@ -77,7 +77,7 @@ pub fn render_home_screen(
     render_help(
         f,
         chunks[2],
-        "q: quit | ↑/k: up | ↓/j: down | Enter: select/create | D: delete day",
+        " ↑/k: up | ↓/j: down | Enter: select/create | D: delete day | q: quit ",
     );
 }
 
@@ -150,7 +150,7 @@ pub fn render_daily_view_screen(
     render_help(
         f,
         chunks[7],
-        "q: quit | a: add food | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | c: sokay | t: training | n: notes | ↑/↓: navigate | Esc: back",
+        " a: add food | w: weight | s: waist | m: miles | l: elevation | c: sokay | t: training | n: notes | ↑/↓: navigate | e: edit | d: delete | Esc: back | q: quit ",
     );
 }
 
@@ -583,7 +583,7 @@ pub fn render_edit_strength_mobility_screen(
 
     // Provide more detailed help for strength & mobility editing
     let help_text = "Record your strength and mobility exercises for the day\n\
-                     Ctrl+J: New line | Enter: Save | Esc: Cancel\n\
+                     Enter: Save | Esc: Cancel\n\
                      Use arrow keys to navigate, Home/End to jump";
 
     let help_widget = Paragraph::new(help_text)
@@ -622,7 +622,7 @@ pub fn render_edit_notes_screen(
 
     // Provide more detailed help for notes editing
     let help_text = "Write your thoughts, feelings, or observations about the day\n\
-                     Ctrl+J: New line | Enter: Save | Esc: Cancel\n\
+                     Enter: Save | Esc: Cancel\n\
                      Use arrow keys to navigate, Home/End to jump";
 
     let help_widget = Paragraph::new(help_text)

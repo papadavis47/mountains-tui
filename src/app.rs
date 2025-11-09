@@ -299,20 +299,11 @@ impl App {
     }
 
     /// This method processes multi-line text input for editing strength & mobility exercises.
-    /// It supports special key combinations like Ctrl+J for newlines.
     async fn handle_edit_strength_mobility_input_with_modifiers(
         &mut self,
         key: KeyCode,
-        modifiers: crossterm::event::KeyModifiers,
+        _modifiers: crossterm::event::KeyModifiers,
     ) -> Result<()> {
-        // First check for special key combinations
-        if self
-            .input_handler
-            .handle_multiline_special_keys(key, modifiers)
-        {
-            return Ok(());
-        }
-
         match key {
             KeyCode::Enter => {
                 // Save the strength & mobility and return to daily view
@@ -342,20 +333,11 @@ impl App {
     }
 
     /// This method processes multi-line text input for editing daily notes.
-    /// It supports special key combinations like Ctrl+J for newlines.
     async fn handle_edit_notes_input_with_modifiers(
         &mut self,
         key: KeyCode,
-        modifiers: crossterm::event::KeyModifiers,
+        _modifiers: crossterm::event::KeyModifiers,
     ) -> Result<()> {
-        // First check for special key combinations
-        if self
-            .input_handler
-            .handle_multiline_special_keys(key, modifiers)
-        {
-            return Ok(());
-        }
-
         match key {
             KeyCode::Enter => {
                 {

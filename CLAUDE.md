@@ -83,7 +83,6 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Multi-line text input** with cursor support
 - `←/→/↑/↓` - Move cursor
 - `Home/End` - Jump to beginning/end of line
-- `Ctrl+J` - Insert newline (Enter saves the exercises)
 - `Enter` - Save exercises
 - `Esc` - Cancel and return
 
@@ -92,7 +91,6 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Multi-line text input** with cursor support
 - `←/→/↑/↓` - Move cursor
 - `Home/End` - Jump to beginning/end of line
-- `Ctrl+J` - Insert newline (Enter saves the notes)
 - `Enter` - Save notes
 - `Esc` - Cancel and return
 
@@ -173,7 +171,14 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Startup Performance Fix)
+### Latest Session (Remove Ctrl+J Functionality)
+- ✅ **Removed Ctrl+J newline insertion** - non-functional keyboard shortcut eliminated
+- ✅ **Simplified multi-line editing** - Enter saves, arrow keys navigate (no special key combo needed)
+- ✅ **Updated UI help text** - removed Ctrl+J references from strength & mobility and notes screens
+- ✅ **Cleaned up code** - removed `handle_multiline_special_keys` method and its calls
+- ✅ **Zero warnings** - application compiles cleanly
+
+### Previous Session (Startup Performance Fix)
 - ✅ **Fixed startup delay** - removed blocking remote replica connection that was causing 1-2 second hang
 - ✅ **True offline-first startup** - always begins with local database, regardless of replica metadata
 - ✅ **Simplified initialization** - eliminated complex conditional logic that was trying to connect to Turso Cloud synchronously
@@ -232,7 +237,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Strength & mobility field** - multi-line text input for logging exercises
 - ✅ **`t` keyboard shortcut** - quick access to edit strength & mobility
 - ✅ **Cyan-colored display** - positioned between food log and notes
-- ✅ **Multi-line editing** - same as notes with Ctrl+J for newlines
+- ✅ **Multi-line editing** - same as notes with arrow key navigation
 - ✅ **Database persistence** - strength_mobility column with automatic migration
 - ✅ **Markdown export** - "## Strength & Mobility" section in backup files
 - ✅ **Cloud sync support** - integrated with Turso Cloud sync

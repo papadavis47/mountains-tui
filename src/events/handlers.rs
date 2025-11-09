@@ -264,27 +264,6 @@ impl InputHandler {
         }
     }
 
-    /// Handles special key combinations for multi-line input
-    ///
-    /// Returns true if a special combination was handled, false otherwise.
-    /// This allows the caller to handle the key normally if no special action was taken.
-    pub fn handle_multiline_special_keys(
-        &mut self,
-        key: KeyCode,
-        modifiers: crossterm::event::KeyModifiers,
-    ) -> bool {
-        use crossterm::event::KeyModifiers;
-
-        match (key, modifiers) {
-            // Ctrl+J inserts a newline (since Enter saves the text)
-            (KeyCode::Char('j'), KeyModifiers::CONTROL) => {
-                self.insert_char('\n');
-                true
-            }
-            _ => false,
-        }
-    }
-
     /// Moves cursor up one line in multi-line text
     ///
     /// This method handles vertical cursor movement by finding the current line
