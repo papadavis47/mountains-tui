@@ -39,26 +39,27 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 
 ### Daily View
 
-- `↑/↓` or `j/k` - Navigate between food items
-- `a` - Add new food item
-- `e` - Edit selected food item
-- `d` - Delete selected food item
+The daily view shows two scrollable lists: **Food Items** and **Sokay entries**. Both lists are visible on screen with equal size.
+
+#### Focus and Navigation
+- `Shift+J` - Switch focus to Sokay list (move down)
+- `Shift+K` - Switch focus to Food list (move up)
+- `↑/↓` or `j/k` - Navigate within the focused list
+- The focused list has a **bright colored border** (yellow for Food, magenta for Sokay)
+- The non-focused list has a **dimmed gray border**
+
+#### Actions
+- `f` - Add new food item
+- `c` - Add new sokay entry
+- `e` - Edit selected item in focused list
+- `d` - Delete selected item in focused list
 - `w` - Edit weight measurement
 - `s` - Edit waist measurement
 - `m` - Edit miles covered
 - `l` - Edit elevation gain
-- `c` - View/manage sokay entries
 - `t` - Edit strength & mobility exercises
 - `n` - Edit daily notes
 - `Esc` - Back to home screen
-
-### Sokay View
-
-- `↑/↓` or `j/k` - Navigate between sokay entries
-- `a` - Add new sokay entry
-- `e` - Edit selected sokay entry
-- `d` - Delete selected sokay entry
-- `Esc` - Back to daily view
 
 ### Add/Edit Food Screens
 
@@ -171,7 +172,19 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Remove Ctrl+J Functionality)
+### Latest Session (Dual-List DailyView with Focus Switching)
+- ✅ **Scrollable Sokay list** - converted from Paragraph to List widget with full navigation support
+- ✅ **Equal-sized lists** - Sokay section now matches Food section size (Constraint::Min(4))
+- ✅ **Focus switching** - Shift+J/K switches focus between Food and Sokay lists
+- ✅ **Visual focus indicator** - bright colored borders (yellow/magenta) show focused list, dimmed gray for unfocused
+- ✅ **Smart edit/delete** - 'e' and 'd' keys work on the currently focused list
+- ✅ **Changed keybindings** - 'f' adds food (was 'a'), 'c' adds sokay directly (was view screen)
+- ✅ **Removed SokayView screen** - eliminated separate view, all management now in DailyView
+- ✅ **FocusedList state tracking** - new enum tracks which list (Food/Sokay) has user's focus
+- ✅ **Focus starts on Food** - consistent initial state when entering DailyView
+- ✅ **Updated documentation** - CLAUDE.md reflects new dual-list navigation model
+
+### Previous Session (Remove Ctrl+J Functionality)
 - ✅ **Removed Ctrl+J newline insertion** - non-functional keyboard shortcut eliminated
 - ✅ **Simplified multi-line editing** - Enter saves, arrow keys navigate (no special key combo needed)
 - ✅ **Updated UI help text** - removed Ctrl+J references from strength & mobility and notes screens

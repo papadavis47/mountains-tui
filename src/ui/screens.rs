@@ -96,6 +96,7 @@ pub fn render_daily_view_screen(
     f: &mut Frame,
     state: &AppState,
     food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
     sync_status: &str,
 ) {
     // Create layout with all sections
@@ -106,8 +107,8 @@ pub fn render_daily_view_screen(
             Constraint::Length(5), // Title (increased for vertical padding)
             Constraint::Length(3), // Measurements (Weight, Waist)
             Constraint::Length(3), // Running (Miles, Elevation)
-            Constraint::Min(4),    // Food list
-            Constraint::Length(5), // Sokay (count + entries list)
+            Constraint::Min(4),    // Food list (scrollable)
+            Constraint::Min(4),    // Sokay list (scrollable, same size as food)
             Constraint::Length(4), // Strength & Mobility section
             Constraint::Length(4), // Notes section
             Constraint::Length(3), // Help
@@ -135,10 +136,11 @@ pub fn render_daily_view_screen(
         state.selected_date,
         &state.daily_logs,
         food_list_state,
+        &state.focused_list,
     );
 
     // Render sokay section (cumulative count + entries)
-    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs);
+    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_list);
 
     // Render strength & mobility section
     render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs);
@@ -150,7 +152,7 @@ pub fn render_daily_view_screen(
     render_help(
         f,
         chunks[7],
-        " a: add food | w: weight | s: waist | m: miles | l: elevation | c: sokay | t: training | n: notes | ↑/↓: navigate | e: edit | d: delete | Esc: back | q: quit ",
+        " f: add food | c: add sokay | j/k/↑/↓: navigate | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | t: training | n: notes | Esc: back | q: quit ",
     );
 }
 
@@ -234,12 +236,14 @@ fn render_running_section(
 ///
 /// Shows all food entries for the selected date, or a helpful message
 /// if no entries exist yet.
+/// The list is visually distinct when it has focus (indicated by focused_list parameter).
 fn render_food_list_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     food_list_state: &mut ListState,
+    focused_list: &crate::models::FocusedList,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -247,7 +251,7 @@ fn render_food_list_section(
     // Create the list items
     let items: Vec<ListItem> = if let Some(log) = log {
         if log.food_entries.is_empty() {
-            vec![ListItem::new("No food entries yet. Press 'a' to add one.")]
+            vec![ListItem::new("No food entries yet. Press 'f' to add one.")]
         } else {
             // Enumerate gives us both the index and the item
             log.food_entries
@@ -261,7 +265,14 @@ fn render_food_list_section(
                 .collect()
         }
     } else {
-        vec![ListItem::new("No food entries yet. Press 'a' to add one.")]
+        vec![ListItem::new("No food entries yet. Press 'f' to add one.")]
+    };
+
+    // Determine the border style based on focus
+    let border_style = if *focused_list == crate::models::FocusedList::Food {
+        Style::default().fg(Color::Yellow) // Bright yellow when focused
+    } else {
+        Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
     // Create and render the food list
@@ -269,6 +280,7 @@ fn render_food_list_section(
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_style(border_style)
                 .title("Food Items")
                 .padding(ratatui::widgets::Padding::horizontal(1)),
         )
@@ -278,13 +290,16 @@ fn render_food_list_section(
 
 /// Renders the sokay display section
 ///
-/// Shows cumulative sokay count and list of sokay entries for the selected date.
+/// Shows cumulative sokay count in the title and a scrollable list of sokay entries.
 /// Sokay entries track unhealthy food choices for accountability.
+/// The list is visually distinct when it has focus (indicated by focused_list parameter).
 fn render_sokay_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
+    sokay_list_state: &mut ListState,
+    focused_list: &crate::models::FocusedList,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -295,48 +310,50 @@ fn render_sokay_section(
             current_screen: crate::models::AppScreen::DailyView,
             selected_date,
             daily_logs: daily_logs.to_vec(),
+            focused_list: crate::models::FocusedList::Food,
         },
         selected_date,
     );
 
-    // Build the sokay text with count and entries
-    let sokay_text = if let Some(log) = log {
-        let count_str = if cumulative_sokay > 0 {
-            format!("Total: {} sokay entries\n\n", cumulative_sokay)
-        } else {
-            "Total: 0 sokay entries\n\n".to_string()
-        };
+    // Create the title with cumulative count
+    let title = format!("Sokay (Total: {})", cumulative_sokay);
 
+    // Create the list items
+    let items: Vec<ListItem> = if let Some(log) = log {
         if log.sokay_entries.is_empty() {
-            format!(
-                "{}No sokay entries for today. Press 'c' to manage sokay.",
-                count_str
-            )
+            vec![ListItem::new("No sokay entries yet. Press 'c' to add one.")]
         } else {
-            let entries_str = log
-                .sokay_entries
+            log.sokay_entries
                 .iter()
                 .enumerate()
-                .map(|(i, entry)| format!("{}. {}", i + 1, entry))
-                .collect::<Vec<_>>()
-                .join("\n");
-            format!("{}Today's entries:\n{}", count_str, entries_str)
+                .map(|(i, entry)| {
+                    let display = format!("{}. {}", i + 1, entry);
+                    ListItem::new(display)
+                })
+                .collect()
         }
     } else {
-        "Total: 0 sokay entries\n\nNo sokay entries for today. Press 'c' to manage sokay."
-            .to_string()
+        vec![ListItem::new("No sokay entries yet. Press 'c' to add one.")]
     };
 
-    // Create and render the sokay widget
-    let sokay_widget = Paragraph::new(sokay_text)
-        .style(Style::default().fg(Color::Magenta))
+    // Determine the border style based on focus
+    let border_style = if *focused_list == crate::models::FocusedList::Sokay {
+        Style::default().fg(Color::Magenta) // Bright magenta when focused
+    } else {
+        Style::default().fg(Color::DarkGray) // Dimmed when not focused
+    };
+
+    // Create and render the sokay list
+    let list = List::new(items)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Sokay (Unhealthy Choices)"),
+                .border_style(border_style)
+                .title(title)
+                .padding(ratatui::widgets::Padding::horizontal(1)),
         )
-        .wrap(ratatui::widgets::Wrap { trim: false });
-    f.render_widget(sokay_widget, area);
+        .highlight_style(create_highlight_style());
+    f.render_stateful_widget(list, area, sokay_list_state);
 }
 
 /// Renders the strength & mobility display section
@@ -755,61 +772,6 @@ pub fn render_edit_elevation_screen(
         f,
         chunks[2],
         "Enter elevation gain in feet (integers only) | Enter: save | Esc: cancel",
-    );
-}
-
-/// Renders the sokay view screen showing all sokay entries for a date
-///
-/// Displays a list of sokay entries (unhealthy food choices) with options to add, edit, or delete.
-pub fn render_sokay_view_screen(f: &mut Frame, state: &AppState, sokay_list_state: &mut ListState) {
-    let chunks = create_standard_layout(f.area());
-
-    let title = format!(
-        "Sokay Entries - {}",
-        state.selected_date.format("%B %d, %Y")
-    );
-    render_title(f, chunks[0], &title);
-
-    // Find the log for the selected date
-    let log = state
-        .daily_logs
-        .iter()
-        .find(|log| log.date == state.selected_date);
-
-    // Create the list items
-    let items: Vec<ListItem> = if let Some(log) = log {
-        if log.sokay_entries.is_empty() {
-            vec![ListItem::new("No sokay entries yet. Press 'a' to add one.")]
-        } else {
-            log.sokay_entries
-                .iter()
-                .enumerate()
-                .map(|(i, entry)| {
-                    let display = format!("{}. {}", i + 1, entry);
-                    ListItem::new(display)
-                })
-                .collect()
-        }
-    } else {
-        vec![ListItem::new("No sokay entries yet. Press 'a' to add one.")]
-    };
-
-    // Create the list widget
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Sokay (Unhealthy Choices)")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
-        )
-        .highlight_style(create_highlight_style());
-
-    f.render_stateful_widget(list, chunks[1], sokay_list_state);
-
-    render_help(
-        f,
-        chunks[2],
-        "a: add | e: edit | d: delete | ↑/↓: navigate | Esc: back to daily view",
     );
 }
 

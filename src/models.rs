@@ -109,6 +109,18 @@ impl DailyLog {
     }
 }
 
+/// Represents which list is currently focused in the DailyView screen
+///
+/// This enum allows users to switch focus between the food list and sokay list
+/// using Shift+J/K keys, and perform operations on the focused list.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FocusedList {
+    /// Food items list has focus
+    Food,
+    /// Sokay entries list has focus
+    Sokay,
+}
+
 /// Represents the different screens/views in the application
 ///
 /// This enum uses Rust's pattern matching capabilities to manage application state.
@@ -134,8 +146,6 @@ pub enum AppScreen {
     EditMiles,
     /// Editing elevation gain
     EditElevation,
-    /// Viewing sokay entries list
-    SokayView,
     /// Adding a new sokay entry
     AddSokay,
     /// Editing an existing sokay entry (parameter is the index of the entry)
@@ -165,18 +175,22 @@ pub struct AppState {
     pub selected_date: NaiveDate,
     /// All daily logs loaded from disk, sorted newest first
     pub daily_logs: Vec<DailyLog>,
+    /// Which list is currently focused in DailyView (Food or Sokay)
+    pub focused_list: FocusedList,
 }
 
 impl AppState {
     /// Creates a new application state with default values
     ///
     /// The application starts on the Home screen with today's date selected.
+    /// Focus starts on the Food list when entering DailyView.
     /// chrono::Local::now().date_naive() gets the current date in the local timezone.
     pub fn new() -> Self {
         Self {
             current_screen: AppScreen::Home,
             selected_date: chrono::Local::now().date_naive(),
             daily_logs: Vec::new(),
+            focused_list: FocusedList::Food,
         }
     }
 

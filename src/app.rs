@@ -155,7 +155,6 @@ impl App {
             AppScreen::EditWaist => self.handle_edit_waist_input(key).await?,
             AppScreen::EditMiles => self.handle_edit_miles_input(key).await?,
             AppScreen::EditElevation => self.handle_edit_elevation_input(key).await?,
-            AppScreen::SokayView => self.handle_sokay_view_input(key).await?,
             AppScreen::AddSokay => self.handle_add_sokay_input(key).await?,
             AppScreen::EditSokay(sokay_index) => {
                 self.handle_edit_sokay_input(key, sokay_index).await?
@@ -171,7 +170,7 @@ impl App {
             AppScreen::ConfirmDeleteDay => {
                 self.handle_confirm_delete_day_input(key).await?
             }
-            _ => self.handle_navigation_input(key).await?,
+            _ => self.handle_navigation_input(key, modifiers).await?,
         }
         Ok(())
     }
@@ -420,32 +419,6 @@ impl App {
         Ok(())
     }
 
-    /// Handles keyboard input for the Sokay View screen (list of sokay entries).
-    async fn handle_sokay_view_input(&mut self, key: KeyCode) -> Result<()> {
-        match key {
-            KeyCode::Char('a') => {
-                self.state.current_screen = AppScreen::AddSokay;
-            }
-            KeyCode::Char('e') => {
-                self.handle_edit_sokay();
-            }
-            KeyCode::Char('d') => {
-                self.handle_delete_sokay().await?;
-            }
-            KeyCode::Char('j') | KeyCode::Down => {
-                self.move_sokay_selection_down();
-            }
-            KeyCode::Char('k') | KeyCode::Up => {
-                self.move_sokay_selection_up();
-            }
-            KeyCode::Esc => {
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
     /// Handles text input for adding a new sokay entry.
     async fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
@@ -461,11 +434,11 @@ impl App {
                     .await?;
                 }
                 self.input_handler.clear();
-                self.state.current_screen = AppScreen::SokayView;
+                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
-                self.state.current_screen = AppScreen::SokayView;
+                self.state.current_screen = AppScreen::DailyView;
             }
             _ => {
                 self.input_handler.handle_text_input(key);
@@ -490,11 +463,11 @@ impl App {
                     .await?;
                 }
                 self.input_handler.clear();
-                self.state.current_screen = AppScreen::SokayView;
+                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
-                self.state.current_screen = AppScreen::SokayView;
+                self.state.current_screen = AppScreen::DailyView;
             }
             _ => {
                 self.input_handler.handle_text_input(key);
@@ -506,24 +479,56 @@ impl App {
     /// This method handles keyboard input for the Home and Daily View screens,
     /// including navigation (up/down), actions (add, edit, delete), and
     /// screen transitions.
-    async fn handle_navigation_input(&mut self, key: KeyCode) -> Result<()> {
+    /// Shift+J/K switches focus between food and sokay lists in DailyView.
+    async fn handle_navigation_input(&mut self, key: KeyCode, modifiers: crossterm::event::KeyModifiers) -> Result<()> {
+        // Handle Shift+J and Shift+K for switching focus between lists in DailyView
+        if modifiers.contains(crossterm::event::KeyModifiers::SHIFT) {
+            match key {
+                KeyCode::Char('J') => {
+                    // Shift+J: Move focus down (Food -> Sokay)
+                    if matches!(self.state.current_screen, AppScreen::DailyView) {
+                        use crate::models::FocusedList;
+                        self.state.focused_list = FocusedList::Sokay;
+                    }
+                    return Ok(());
+                }
+                KeyCode::Char('K') => {
+                    // Shift+K: Move focus up (Sokay -> Food)
+                    if matches!(self.state.current_screen, AppScreen::DailyView) {
+                        use crate::models::FocusedList;
+                        self.state.focused_list = FocusedList::Food;
+                    }
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+
         match key {
             KeyCode::Char('q') => {
                 // Quit the application
                 self.should_quit = true;
             }
             KeyCode::Char('j') | KeyCode::Down => {
-                // Move selection down
+                // Move selection down within the focused list
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.move_food_selection_down();
+                    use crate::models::FocusedList;
+                    match self.state.focused_list {
+                        FocusedList::Food => self.move_food_selection_down(),
+                        FocusedList::Sokay => self.move_sokay_selection_down(),
+                    }
                 } else {
                     self.move_selection_down();
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                // Move selection up
+                // Move selection up within the focused list
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.move_food_selection_up();
+                    use crate::models::FocusedList;
+                    match self.state.focused_list {
+                        FocusedList::Food => self.move_food_selection_up(),
+                        FocusedList::Sokay => self.move_sokay_selection_up(),
+                    }
                 } else {
                     self.move_selection_up();
                 }
@@ -540,22 +545,30 @@ impl App {
                     self.handle_delete_day_confirmation();
                 }
             }
-            KeyCode::Char('a') => {
+            KeyCode::Char('f') => {
                 // Add food (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.state.current_screen = AppScreen::AddFood;
                 }
             }
             KeyCode::Char('e') => {
-                // Edit food (only available in daily view)
+                // Edit item in focused list (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.handle_edit_food();
+                    use crate::models::FocusedList;
+                    match self.state.focused_list {
+                        FocusedList::Food => self.handle_edit_food(),
+                        FocusedList::Sokay => self.handle_edit_sokay(),
+                    }
                 }
             }
             KeyCode::Char('d') => {
-                // Delete food (only available in daily view)
+                // Delete item in focused list (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.handle_delete_food().await?;
+                    use crate::models::FocusedList;
+                    match self.state.focused_list {
+                        FocusedList::Food => self.handle_delete_food().await?,
+                        FocusedList::Sokay => self.handle_delete_sokay().await?,
+                    }
                 }
             }
             KeyCode::Char('w') => {
@@ -595,9 +608,9 @@ impl App {
                 }
             }
             KeyCode::Char('c') => {
-                // View sokay entries (only available in daily view)
+                // Add sokay entry (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    self.handle_sokay_view();
+                    self.state.current_screen = AppScreen::AddSokay;
                 }
             }
             _ => {
@@ -615,7 +628,7 @@ impl App {
                 screens::render_home_screen(f, &self.state, &mut self.list_state, &self.sync_status);
             }
             AppScreen::DailyView => {
-                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state, &self.sync_status);
+                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state, &self.sync_status);
             }
             AppScreen::AddFood => {
                 screens::render_add_food_screen(
@@ -680,9 +693,6 @@ impl App {
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
-            }
-            AppScreen::SokayView => {
-                screens::render_sokay_view_screen(f, &self.state, &mut self.sokay_list_state);
             }
             AppScreen::AddSokay => {
                 screens::render_add_sokay_screen(
@@ -883,12 +893,6 @@ impl App {
         let current_elevation = ActionHandler::start_edit_elevation(&self.state);
         self.input_handler.set_input(current_elevation);
         self.state.current_screen = AppScreen::EditElevation;
-    }
-
-    /// Switches to the Sokay View screen.
-    fn handle_sokay_view(&mut self) {
-        self.state.current_screen = AppScreen::SokayView;
-        self.sokay_list_state.select(None); // Reset selection
     }
 
     /// Initiates editing of a sokay entry.
