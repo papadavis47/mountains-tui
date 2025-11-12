@@ -1,33 +1,7 @@
 /// This module contains all the core data structures used throughout the application.
 ///
-/// The structures here use Rust's type system to ensure data integrity and
-/// provide a clear interface for the rest of the application.
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-
-/// Represents a single food entry in a daily log
-///
-/// Each food entry has:
-/// - name: Required name of the food item
-///
-/// The derive attributes provide useful functionality:
-/// - Debug: Allows printing the struct for debugging
-/// - Clone: Allows creating copies of the struct
-/// - Serialize/Deserialize: Enables saving/loading from files via serde
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FoodEntry {
-    /// The name of the food item (e.g., "Chicken Salad", "Apple")
-    pub name: String,
-}
-
-impl FoodEntry {
-    /// Creates a new food entry with the given name
-    ///
-    /// This constructor function provides a clean way to create FoodEntry instances.
-    pub fn new(name: String) -> Self {
-        Self { name }
-    }
-}
 
 /// Represents a complete daily log with food entries and measurements
 ///
@@ -106,6 +80,30 @@ impl DailyLog {
         if index < self.sokay_entries.len() {
             self.sokay_entries.remove(index);
         }
+    }
+}
+
+/// Represents a single food entry in a daily log
+///
+/// Each food entry has:
+/// - name: Required name of the food item
+///
+/// The derive attributes provide useful functionality:
+/// - Debug: Allows printing the struct for debugging
+/// - Clone: Allows creating copies of the struct
+/// - Serialize/Deserialize: Enables saving/loading from files via serde
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FoodEntry {
+    /// The name of the food item (e.g., "Chicken Salad", "Apple")
+    pub name: String,
+}
+
+impl FoodEntry {
+    /// Creates a new food entry with the given name
+    ///
+    /// This constructor function provides a clean way to create FoodEntry instances.
+    pub fn new(name: String) -> Self {
+        Self { name }
     }
 }
 
