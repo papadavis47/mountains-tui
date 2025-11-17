@@ -9,9 +9,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 use crate::db_manager::{ConnectionState, DbManager};
-use crate::events::handlers::{ActionHandler, InputHandler, NavigationHandler};
+use crate::events::handlers::{ActionHandler, InputHandler, NavigationHandler, SectionNavigator};
 use crate::file_manager::FileManager;
-use crate::models::{AppScreen, AppState};
+use crate::models::{AppScreen, AppState, FocusedSection, MeasurementField, RunningField};
 use crate::ui::screens;
 
 /// This struct follows the "composition over inheritance" principle by
@@ -479,24 +479,23 @@ impl App {
     /// This method handles keyboard input for the Home and Daily View screens,
     /// including navigation (up/down), actions (add, edit, delete), and
     /// screen transitions.
-    /// Shift+J/K switches focus between food and sokay lists in DailyView.
+    /// Shift+J/K switches focus between sections in DailyView.
+    /// Tab toggles between fields within Measurements and Running sections.
     async fn handle_navigation_input(&mut self, key: KeyCode, modifiers: crossterm::event::KeyModifiers) -> Result<()> {
-        // Handle Shift+J and Shift+K for switching focus between lists in DailyView
+        // Handle Shift+J and Shift+K for switching focus between sections in DailyView
         if modifiers.contains(crossterm::event::KeyModifiers::SHIFT) {
             match key {
                 KeyCode::Char('J') => {
-                    // Shift+J: Move focus down (Food -> Sokay)
+                    // Shift+J: Move focus to next section
                     if matches!(self.state.current_screen, AppScreen::DailyView) {
-                        use crate::models::FocusedList;
-                        self.state.focused_list = FocusedList::Sokay;
+                        self.state.focused_section = SectionNavigator::move_focus_down(&self.state.focused_section);
                     }
                     return Ok(());
                 }
                 KeyCode::Char('K') => {
-                    // Shift+K: Move focus up (Sokay -> Food)
+                    // Shift+K: Move focus to previous section
                     if matches!(self.state.current_screen, AppScreen::DailyView) {
-                        use crate::models::FocusedList;
-                        self.state.focused_list = FocusedList::Food;
+                        self.state.focused_section = SectionNavigator::move_focus_up(&self.state.focused_section);
                     }
                     return Ok(());
                 }
@@ -509,32 +508,42 @@ impl App {
                 // Quit the application
                 self.should_quit = true;
             }
-            KeyCode::Char('j') | KeyCode::Down => {
-                // Move selection down within the focused list
+            KeyCode::Tab => {
+                // Toggle internal field focus (Weight<->Waist, Miles<->Elevation)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    use crate::models::FocusedList;
-                    match self.state.focused_list {
-                        FocusedList::Food => self.move_food_selection_down(),
-                        FocusedList::Sokay => self.move_sokay_selection_down(),
+                    self.state.focused_section = SectionNavigator::toggle_internal_focus(&self.state.focused_section);
+                }
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                // Move selection down within the focused list (Food/Sokay only)
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    match self.state.focused_section {
+                        FocusedSection::FoodItems => self.move_food_selection_down(),
+                        FocusedSection::Sokay => self.move_sokay_selection_down(),
+                        _ => {} // Other sections don't have scrollable lists
                     }
                 } else {
                     self.move_selection_down();
                 }
             }
             KeyCode::Char('k') | KeyCode::Up => {
-                // Move selection up within the focused list
+                // Move selection up within the focused list (Food/Sokay only)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    use crate::models::FocusedList;
-                    match self.state.focused_list {
-                        FocusedList::Food => self.move_food_selection_up(),
-                        FocusedList::Sokay => self.move_sokay_selection_up(),
+                    match self.state.focused_section {
+                        FocusedSection::FoodItems => self.move_food_selection_up(),
+                        FocusedSection::Sokay => self.move_sokay_selection_up(),
+                        _ => {} // Other sections don't have scrollable lists
                     }
                 } else {
                     self.move_selection_up();
                 }
             }
             KeyCode::Enter => {
-                self.handle_enter();
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.handle_section_enter().await?;
+                } else {
+                    self.handle_enter();
+                }
             }
             KeyCode::Esc => {
                 self.handle_escape();
@@ -554,20 +563,20 @@ impl App {
             KeyCode::Char('e') => {
                 // Edit item in focused list (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    use crate::models::FocusedList;
-                    match self.state.focused_list {
-                        FocusedList::Food => self.handle_edit_food(),
-                        FocusedList::Sokay => self.handle_edit_sokay(),
+                    match self.state.focused_section {
+                        FocusedSection::FoodItems => self.handle_edit_food(),
+                        FocusedSection::Sokay => self.handle_edit_sokay(),
+                        _ => {} // Other sections use Enter key for editing
                     }
                 }
             }
             KeyCode::Char('d') => {
                 // Delete item in focused list (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    use crate::models::FocusedList;
-                    match self.state.focused_list {
-                        FocusedList::Food => self.handle_delete_food().await?,
-                        FocusedList::Sokay => self.handle_delete_sokay().await?,
+                    match self.state.focused_section {
+                        FocusedSection::FoodItems => self.handle_delete_food().await?,
+                        FocusedSection::Sokay => self.handle_delete_sokay().await?,
+                        _ => {} // Other sections don't have individual items to delete
                     }
                 }
             }
@@ -615,6 +624,42 @@ impl App {
             }
             _ => {
                 // Ignore other keys
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles Enter key press based on the currently focused section
+    ///
+    /// This method opens the appropriate edit screen for the focused section,
+    /// or adds a new entry for list sections (Food/Sokay).
+    async fn handle_section_enter(&mut self) -> Result<()> {
+        match &self.state.focused_section {
+            FocusedSection::Measurements { focused_field } => {
+                match focused_field {
+                    MeasurementField::Weight => self.handle_edit_weight(),
+                    MeasurementField::Waist => self.handle_edit_waist(),
+                }
+            }
+            FocusedSection::Running { focused_field } => {
+                match focused_field {
+                    RunningField::Miles => self.handle_edit_miles(),
+                    RunningField::Elevation => self.handle_edit_elevation(),
+                }
+            }
+            FocusedSection::FoodItems => {
+                // Add new food entry
+                self.state.current_screen = AppScreen::AddFood;
+            }
+            FocusedSection::Sokay => {
+                // Add new sokay entry
+                self.state.current_screen = AppScreen::AddSokay;
+            }
+            FocusedSection::StrengthMobility => {
+                self.handle_edit_strength_mobility();
+            }
+            FocusedSection::Notes => {
+                self.handle_edit_notes();
             }
         }
         Ok(())
@@ -750,21 +795,35 @@ impl App {
     // These methods update the list selection state using the NavigationHandler
 
     /// Moves the selection down in the home screen daily logs list
+    /// If the list is unfocused, this will focus the first item
     fn move_selection_down(&mut self) {
-        let new_selection = NavigationHandler::move_selection_down(
-            self.list_state.selected(),
-            self.state.daily_logs.len(),
-        );
-        self.list_state.select(new_selection);
+        if self.list_state.selected().is_none() && !self.state.daily_logs.is_empty() {
+            // List is unfocused - focus the first item (most recent date)
+            self.list_state.select(Some(0));
+        } else {
+            // List is focused - move down normally
+            let new_selection = NavigationHandler::move_selection_down(
+                self.list_state.selected(),
+                self.state.daily_logs.len(),
+            );
+            self.list_state.select(new_selection);
+        }
     }
 
     /// Moves the selection up in the home screen daily logs list
+    /// If the list is unfocused, this will focus the last item
     fn move_selection_up(&mut self) {
-        let new_selection = NavigationHandler::move_selection_up(
-            self.list_state.selected(),
-            self.state.daily_logs.len(),
-        );
-        self.list_state.select(new_selection);
+        if self.list_state.selected().is_none() && !self.state.daily_logs.is_empty() {
+            // List is unfocused - focus the last item (oldest date)
+            self.list_state.select(Some(self.state.daily_logs.len() - 1));
+        } else {
+            // List is focused - move up normally
+            let new_selection = NavigationHandler::move_selection_up(
+                self.list_state.selected(),
+                self.state.daily_logs.len(),
+            );
+            self.list_state.select(new_selection);
+        }
     }
 
     /// Moves the selection down in the daily view food list
@@ -826,10 +885,15 @@ impl App {
     }
 
     /// Generally used to go back to the previous screen:
+    /// - Home: Unfocus the list
     /// - Daily View: Return to Home
     /// - Input screens: Handle separately in their input methods
     fn handle_escape(&mut self) {
         match self.state.current_screen {
+            AppScreen::Home => {
+                // Unfocus the list on home screen
+                self.list_state.select(None);
+            }
             AppScreen::DailyView => {
                 self.state.current_screen = AppScreen::Home;
             }

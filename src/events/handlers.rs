@@ -1,6 +1,8 @@
 use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
-use crate::models::{AppScreen, AppState, FoodEntry};
+use crate::models::{
+    AppScreen, AppState, FocusedSection, FoodEntry, MeasurementField, RunningField,
+};
 use crossterm::event::KeyCode;
 
 /// This struct manages the state needed for text input, including:
@@ -348,6 +350,82 @@ impl InputHandler {
     }
 }
 
+/// Section navigator for managing focus between different sections in DailyView
+///
+/// This struct provides navigation logic for moving between sections (Measurements,
+/// Running, Food Items, Sokay, Strength & Mobility, Notes) and toggling focus
+/// between fields within sections.
+pub struct SectionNavigator;
+
+impl SectionNavigator {
+    /// Move focus to the next section (Shift+J)
+    ///
+    /// Navigation order: Measurements -> Running -> Food Items -> Sokay ->
+    /// Strength & Mobility -> Notes -> (wraps to Measurements)
+    pub fn move_focus_down(current: &FocusedSection) -> FocusedSection {
+        match current {
+            FocusedSection::Measurements { .. } => FocusedSection::Running {
+                focused_field: RunningField::Miles,
+            },
+            FocusedSection::Running { .. } => FocusedSection::FoodItems,
+            FocusedSection::FoodItems => FocusedSection::Sokay,
+            FocusedSection::Sokay => FocusedSection::StrengthMobility,
+            FocusedSection::StrengthMobility => FocusedSection::Notes,
+            FocusedSection::Notes => FocusedSection::Measurements {
+                focused_field: MeasurementField::Weight,
+            },
+        }
+    }
+
+    /// Move focus to the previous section (Shift+K)
+    ///
+    /// Navigation order (reverse): Notes -> Strength & Mobility -> Sokay ->
+    /// Food Items -> Running -> Measurements -> (wraps to Notes)
+    pub fn move_focus_up(current: &FocusedSection) -> FocusedSection {
+        match current {
+            FocusedSection::Measurements { .. } => FocusedSection::Notes,
+            FocusedSection::Running { .. } => FocusedSection::Measurements {
+                focused_field: MeasurementField::Weight,
+            },
+            FocusedSection::FoodItems => FocusedSection::Running {
+                focused_field: RunningField::Miles,
+            },
+            FocusedSection::Sokay => FocusedSection::FoodItems,
+            FocusedSection::StrengthMobility => FocusedSection::Sokay,
+            FocusedSection::Notes => FocusedSection::StrengthMobility,
+        }
+    }
+
+    /// Toggle internal field focus with Tab
+    ///
+    /// For Measurements: toggles between Weight and Waist
+    /// For Running: toggles between Miles and Elevation
+    /// For other sections: returns the same section (no internal fields)
+    pub fn toggle_internal_focus(current: &FocusedSection) -> FocusedSection {
+        match current {
+            FocusedSection::Measurements { focused_field } => {
+                let new_field = match focused_field {
+                    MeasurementField::Weight => MeasurementField::Waist,
+                    MeasurementField::Waist => MeasurementField::Weight,
+                };
+                FocusedSection::Measurements {
+                    focused_field: new_field,
+                }
+            }
+            FocusedSection::Running { focused_field } => {
+                let new_field = match focused_field {
+                    RunningField::Miles => RunningField::Elevation,
+                    RunningField::Elevation => RunningField::Miles,
+                };
+                FocusedSection::Running {
+                    focused_field: new_field,
+                }
+            }
+            _ => current.clone(), // No internal fields to toggle
+        }
+    }
+}
+
 /// Navigation handler for managing list selections
 ///
 /// This struct manages selection state for different lists in the application.
@@ -533,14 +611,16 @@ impl ActionHandler {
     ///
     /// This function either creates a new daily log for today or navigates
     /// to an existing daily log based on the user's selection.
+    /// If no item is selected (list is unfocused), it goes to today's date.
     pub fn handle_home_enter(state: &mut AppState, selected_index: Option<usize>) {
-        if state.daily_logs.is_empty() {
-            // No logs exist - create today's log
-            state.selected_date = chrono::Local::now().date_naive();
-        } else if let Some(index) = selected_index {
+        if let Some(index) = selected_index {
+            // List is focused - go to selected date
             if index < state.daily_logs.len() {
                 state.selected_date = state.daily_logs[index].date;
             }
+        } else {
+            // List is unfocused - go to today's date
+            state.selected_date = chrono::Local::now().date_naive();
         }
         state.current_screen = AppScreen::DailyView;
     }

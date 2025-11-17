@@ -11,7 +11,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
-use crate::models::{AppState, DailyLog};
+use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::*;
 
 /// Renders the home screen showing all available daily logs
@@ -77,7 +77,7 @@ pub fn render_home_screen(
     render_help(
         f,
         chunks[2],
-        " ↑/k: up | ↓/j: down | Enter: select/create | D: delete day | q: quit ",
+        " ↑/k: up | ↓/j: down | Enter: select/today | Esc: unfocus | D: delete day | q: quit ",
     );
 }
 
@@ -124,10 +124,10 @@ pub fn render_daily_view_screen(
     render_title(f, chunks[0], &title);
 
     // Render measurements section (Weight, Waist)
-    render_measurements_section(f, chunks[1], state.selected_date, &state.daily_logs);
+    render_measurements_section(f, chunks[1], state.selected_date, &state.daily_logs, &state.focused_section);
 
     // Render running section (Miles, Elevation)
-    render_running_section(f, chunks[2], state.selected_date, &state.daily_logs);
+    render_running_section(f, chunks[2], state.selected_date, &state.daily_logs, &state.focused_section);
 
     // Render food items list
     render_food_list_section(
@@ -136,23 +136,23 @@ pub fn render_daily_view_screen(
         state.selected_date,
         &state.daily_logs,
         food_list_state,
-        &state.focused_list,
+        &state.focused_section,
     );
 
     // Render sokay section (cumulative count + entries)
-    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_list);
+    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_section);
 
     // Render strength & mobility section
-    render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs);
+    render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs, &state.focused_section);
 
     // Render notes section
-    render_notes_section(f, chunks[6], state.selected_date, &state.daily_logs);
+    render_notes_section(f, chunks[6], state.selected_date, &state.daily_logs, &state.focused_section);
 
     // Render help text with all available actions
     render_help(
         f,
         chunks[7],
-        " f: add food | c: add sokay | j/k/↑/↓: navigate | e: edit | d: delete | w: weight | s: waist | m: miles | l: elevation | t: training | n: notes | Esc: back | q: quit ",
+        " Shift+J/K: section | Tab: field | Enter: edit | j/k: list | f: food | c: sokay | t: training | n: notes | Esc: back ",
     );
 }
 
@@ -160,16 +160,24 @@ pub fn render_daily_view_screen(
 ///
 /// Shows current weight and waist measurements for the selected date.
 /// If no measurements are recorded, shows "Not set" placeholders.
+/// Highlights the focused field with a ► indicator when this section has focus.
 fn render_measurements_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    // Format the measurements text - body measurements only
+    // Determine if this section has focus and which field is focused
+    let (has_focus, focused_field) = match focused_section {
+        FocusedSection::Measurements { focused_field } => (true, Some(focused_field)),
+        _ => (false, None),
+    };
+
+    // Format the measurements text with focus indicators
     let measurements_text = if let Some(log) = log {
         let weight_str = if let Some(weight) = log.weight {
             format!("Weight: {} lbs", weight)
@@ -182,15 +190,53 @@ fn render_measurements_section(
             "Waist Size: Not set".to_string()
         };
 
-        format!("{} | {}", weight_str, waist_str)
+        // Add focus indicator (►) to the focused field
+        let weight_display = if matches!(focused_field, Some(MeasurementField::Weight)) {
+            format!("► {}", weight_str)
+        } else {
+            weight_str
+        };
+        let waist_display = if matches!(focused_field, Some(MeasurementField::Waist)) {
+            format!("► {}", waist_str)
+        } else {
+            waist_str
+        };
+
+        format!("{} | {}", weight_display, waist_display)
     } else {
-        "Weight: Not set | Waist Size: Not set".to_string()
+        let weight_str = "Weight: Not set".to_string();
+        let waist_str = "Waist Size: Not set".to_string();
+
+        let weight_display = if matches!(focused_field, Some(MeasurementField::Weight)) {
+            format!("► {}", weight_str)
+        } else {
+            weight_str
+        };
+        let waist_display = if matches!(focused_field, Some(MeasurementField::Waist)) {
+            format!("► {}", waist_str)
+        } else {
+            waist_str
+        };
+
+        format!("{} | {}", weight_display, waist_display)
+    };
+
+    // Determine border style based on focus
+    let border_style = if has_focus {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::DarkGray)
     };
 
     // Create and render the measurements widget
     let measurements_widget = Paragraph::new(measurements_text)
         .style(Style::default().fg(Color::Yellow))
-        .block(Block::default().borders(Borders::ALL).title("Measurements"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title("Measurements"),
+        );
     f.render_widget(measurements_widget, area);
 }
 
@@ -198,16 +244,24 @@ fn render_measurements_section(
 ///
 /// Shows current miles covered and elevation gain for the selected date.
 /// If no running data is recorded, shows "Not set" placeholders.
+/// Highlights the focused field with a ► indicator when this section has focus.
 fn render_running_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    // Format the running text - activity measurements only
+    // Determine if this section has focus and which field is focused
+    let (has_focus, focused_field) = match focused_section {
+        FocusedSection::Running { focused_field } => (true, Some(focused_field)),
+        _ => (false, None),
+    };
+
+    // Format the running text with focus indicators
     let running_text = if let Some(log) = log {
         let miles_str = if let Some(miles) = log.miles_covered {
             format!("Miles: {} mi", miles)
@@ -220,15 +274,53 @@ fn render_running_section(
             "Elevation: Not set".to_string()
         };
 
-        format!("{} | {}", miles_str, elevation_str)
+        // Add focus indicator (►) to the focused field
+        let miles_display = if matches!(focused_field, Some(RunningField::Miles)) {
+            format!("► {}", miles_str)
+        } else {
+            miles_str
+        };
+        let elevation_display = if matches!(focused_field, Some(RunningField::Elevation)) {
+            format!("► {}", elevation_str)
+        } else {
+            elevation_str
+        };
+
+        format!("{} | {}", miles_display, elevation_display)
     } else {
-        "Miles: Not set | Elevation: Not set".to_string()
+        let miles_str = "Miles: Not set".to_string();
+        let elevation_str = "Elevation: Not set".to_string();
+
+        let miles_display = if matches!(focused_field, Some(RunningField::Miles)) {
+            format!("► {}", miles_str)
+        } else {
+            miles_str
+        };
+        let elevation_display = if matches!(focused_field, Some(RunningField::Elevation)) {
+            format!("► {}", elevation_str)
+        } else {
+            elevation_str
+        };
+
+        format!("{} | {}", miles_display, elevation_display)
+    };
+
+    // Determine border style based on focus
+    let border_style = if has_focus {
+        Style::default().fg(Color::LightRed)
+    } else {
+        Style::default().fg(Color::DarkGray)
     };
 
     // Create and render the running widget
     let running_widget = Paragraph::new(running_text)
         .style(Style::default().fg(Color::LightRed))
-        .block(Block::default().borders(Borders::ALL).title("Running"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title("Running"),
+        );
     f.render_widget(running_widget, area);
 }
 
@@ -236,14 +328,14 @@ fn render_running_section(
 ///
 /// Shows all food entries for the selected date, or a helpful message
 /// if no entries exist yet.
-/// The list is visually distinct when it has focus (indicated by focused_list parameter).
+/// The list is visually distinct when it has focus (indicated by focused_section parameter).
 fn render_food_list_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     food_list_state: &mut ListState,
-    focused_list: &crate::models::FocusedList,
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -267,14 +359,14 @@ fn render_food_list_section(
     };
 
     // Determine the border style based on focus
-    let border_style = if *focused_list == crate::models::FocusedList::Food {
+    let border_style = if matches!(focused_section, FocusedSection::FoodItems) {
         Style::default().fg(Color::Yellow) // Bright yellow when focused
     } else {
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
     // Determine highlight style based on focus
-    let highlight_style = if *focused_list == crate::models::FocusedList::Food {
+    let highlight_style = if matches!(focused_section, FocusedSection::FoodItems) {
         create_highlight_style() // Show highlight when focused
     } else {
         Style::default() // No highlight when unfocused
@@ -297,14 +389,14 @@ fn render_food_list_section(
 ///
 /// Shows cumulative sokay count in the title and a scrollable list of sokay entries.
 /// Sokay entries track unhealthy food choices for accountability.
-/// The list is visually distinct when it has focus (indicated by focused_list parameter).
+/// The list is visually distinct when it has focus (indicated by focused_section parameter).
 fn render_sokay_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     sokay_list_state: &mut ListState,
-    focused_list: &crate::models::FocusedList,
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -315,7 +407,7 @@ fn render_sokay_section(
             current_screen: crate::models::AppScreen::DailyView,
             selected_date,
             daily_logs: daily_logs.to_vec(),
-            focused_list: crate::models::FocusedList::Food,
+            focused_section: FocusedSection::FoodItems,
         },
         selected_date,
     );
@@ -342,14 +434,14 @@ fn render_sokay_section(
     };
 
     // Determine the border style based on focus
-    let border_style = if *focused_list == crate::models::FocusedList::Sokay {
+    let border_style = if matches!(focused_section, FocusedSection::Sokay) {
         Style::default().fg(Color::Magenta) // Bright magenta when focused
     } else {
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
     // Determine highlight style based on focus
-    let highlight_style = if *focused_list == crate::models::FocusedList::Sokay {
+    let highlight_style = if matches!(focused_section, FocusedSection::Sokay) {
         create_highlight_style() // Show highlight when focused
     } else {
         Style::default() // No highlight when unfocused
@@ -372,14 +464,19 @@ fn render_sokay_section(
 ///
 /// Shows current strength and mobility exercises for the selected date, or a message indicating
 /// that no exercises have been recorded yet.
+/// The section is visually distinct when it has focus (bright border).
 fn render_strength_mobility_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    // Determine if this section has focus
+    let has_focus = matches!(focused_section, FocusedSection::StrengthMobility);
 
     // Format the strength & mobility text
     let sm_text = if let Some(log) = log {
@@ -396,12 +493,20 @@ fn render_strength_mobility_section(
         "No exercises recorded yet. Press 't' to add training info.".to_string()
     };
 
+    // Determine border style based on focus
+    let border_style = if has_focus {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
     // Create and render the strength & mobility widget
     let sm_widget = Paragraph::new(sm_text)
         .style(Style::default().fg(Color::Cyan))
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_style(border_style)
                 .title("Strength & Mobility"),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });
@@ -412,14 +517,19 @@ fn render_strength_mobility_section(
 ///
 /// Shows current daily notes for the selected date, or a message indicating
 /// that no notes have been written yet.
+/// The section is visually distinct when it has focus (bright border).
 fn render_notes_section(
     f: &mut Frame,
     area: ratatui::layout::Rect,
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
+    focused_section: &FocusedSection,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    // Determine if this section has focus
+    let has_focus = matches!(focused_section, FocusedSection::Notes);
 
     // Format the notes text
     let notes_text = if let Some(log) = log {
@@ -436,10 +546,22 @@ fn render_notes_section(
         "No notes for this day yet. Press 'n' to add notes.".to_string()
     };
 
+    // Determine border style based on focus
+    let border_style = if has_focus {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
     // Create and render the notes widget
     let notes_widget = Paragraph::new(notes_text)
         .style(Style::default().fg(Color::Green))
-        .block(Block::default().borders(Borders::ALL).title("Notes"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title("Notes"),
+        )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(notes_widget, area);
 }

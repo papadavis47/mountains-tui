@@ -105,16 +105,42 @@ impl FoodEntry {
     }
 }
 
-/// Represents which list is currently focused in the DailyView screen
-///
-/// This enum allows users to switch focus between the food list and sokay list
-/// using Shift+J/K keys, and perform operations on the focused list.
+/// Represents which field within the Measurements section is focused
 #[derive(Debug, Clone, PartialEq)]
-pub enum FocusedList {
+pub enum MeasurementField {
+    /// Weight measurement has focus
+    Weight,
+    /// Waist measurement has focus
+    Waist,
+}
+
+/// Represents which field within the Running section is focused
+#[derive(Debug, Clone, PartialEq)]
+pub enum RunningField {
+    /// Miles covered has focus
+    Miles,
+    /// Elevation gain has focus
+    Elevation,
+}
+
+/// Represents which section is currently focused in the DailyView screen
+///
+/// This enum allows users to navigate between different sections using Shift+J/K keys.
+/// Some sections have internal fields that can be toggled with Tab (Measurements, Running).
+#[derive(Debug, Clone, PartialEq)]
+pub enum FocusedSection {
+    /// Measurements section (weight and waist)
+    Measurements { focused_field: MeasurementField },
+    /// Running section (miles and elevation)
+    Running { focused_field: RunningField },
     /// Food items list has focus
-    Food,
+    FoodItems,
     /// Sokay entries list has focus
     Sokay,
+    /// Strength & Mobility section has focus
+    StrengthMobility,
+    /// Notes section has focus
+    Notes,
 }
 
 /// Represents the different screens/views in the application
@@ -171,22 +197,24 @@ pub struct AppState {
     pub selected_date: NaiveDate,
     /// All daily logs loaded from disk, sorted newest first
     pub daily_logs: Vec<DailyLog>,
-    /// Which list is currently focused in DailyView (Food or Sokay)
-    pub focused_list: FocusedList,
+    /// Which section is currently focused in DailyView
+    pub focused_section: FocusedSection,
 }
 
 impl AppState {
     /// Creates a new application state with default values
     ///
     /// The application starts on the Home screen with today's date selected.
-    /// Focus starts on the Food list when entering DailyView.
+    /// Focus starts on the Measurements section (Weight field) when entering DailyView.
     /// chrono::Local::now().date_naive() gets the current date in the local timezone.
     pub fn new() -> Self {
         Self {
             current_screen: AppScreen::Home,
             selected_date: chrono::Local::now().date_naive(),
             daily_logs: Vec::new(),
-            focused_list: FocusedList::Food,
+            focused_section: FocusedSection::Measurements {
+                focused_field: MeasurementField::Weight,
+            },
         }
     }
 

@@ -32,33 +32,60 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 
 ### Home Screen
 
+The home screen starts with the list **unfocused** (no item highlighted).
+
+#### When list is unfocused:
+- `Enter` - Go to today's log (creating if needed)
+- `j` or `↓` - Focus list and select first item (most recent date)
+- `k` or `↑` - Focus list and select last item (oldest date)
+
+#### When list is focused:
 - `↑/↓` or `j/k` - Navigate between dates
-- `Enter` - Select date or create today's log
+- `Enter` - Go to selected date's log
+- `Esc` - Unfocus the list (remove highlight)
 - `D` - Delete selected day (with confirmation)
+
+#### Always available:
 - `q` - Quit application
 
 ### Daily View
 
-The daily view shows two scrollable lists: **Food Items** and **Sokay entries**. Both lists are visible on screen with equal size.
+The daily view shows all sections for tracking your training day: **Measurements**, **Running**, **Food Items**, **Sokay**, **Strength & Mobility**, and **Notes**.
 
-#### Focus and Navigation
-- `Shift+J` - Switch focus to Sokay list (move down)
-- `Shift+K` - Switch focus to Food list (move up)
-- `↑/↓` or `j/k` - Navigate within the focused list
-- The focused list has a **bright colored border** (yellow for Food, magenta for Sokay)
-- The non-focused list has a **dimmed gray border**
+#### Section Navigation
+- `Shift+J` - Move focus to next section (down)
+- `Shift+K` - Move focus to previous section (up)
+- **Navigation order:** Measurements → Running → Food Items → Sokay → Strength & Mobility → Notes → (wraps to Measurements)
+- The focused section has a **bright colored border** (yellow, red, cyan, magenta, or green depending on section)
+- Unfocused sections have **dimmed gray borders**
 
-#### Actions
-- `f` - Add new food item
-- `c` - Add new sokay entry
+#### Field Navigation (Measurements & Running sections only)
+- `Tab` - Toggle between fields within a section
+  - **Measurements:** Weight ↔ Waist
+  - **Running:** Miles ↔ Elevation
+- The focused field is indicated with a **► symbol**
+
+#### List Navigation (Food Items & Sokay sections only)
+- `↑/↓` or `j/k` - Navigate within the list
 - `e` - Edit selected item in focused list
 - `d` - Delete selected item in focused list
-- `w` - Edit weight measurement
-- `s` - Edit waist measurement
-- `m` - Edit miles covered
-- `l` - Edit elevation gain
-- `t` - Edit strength & mobility exercises
-- `n` - Edit daily notes
+
+#### Editing Data
+- `Enter` - Edit the focused section/field or add new entry (for Food/Sokay)
+  - **Measurements/Running:** Opens input for the focused field
+  - **Food Items:** Opens "Add Food" dialog
+  - **Sokay:** Opens "Add Sokay" dialog
+  - **Strength & Mobility/Notes:** Opens editor for that section
+
+#### Quick Access Shortcuts (still available)
+- `f` - Add new food item (shortcut)
+- `c` - Add new sokay entry (shortcut)
+- `w` - Edit weight measurement (shortcut)
+- `s` - Edit waist measurement (shortcut)
+- `m` - Edit miles covered (shortcut)
+- `l` - Edit elevation gain (shortcut)
+- `t` - Edit strength & mobility exercises (shortcut)
+- `n` - Edit daily notes (shortcut)
 - `Esc` - Back to home screen
 
 ### Add/Edit Food Screens
@@ -172,21 +199,37 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (UI Refinements - List Formatting, Delete Confirmation & Focus Highlighting)
+### Latest Session (Home Screen Unfocus & Today Quick Access)
+- ✅ **Unfocused initial state** - Home screen starts with no item highlighted for quick access to today
+- ✅ **Esc to unfocus** - Press Esc on home screen to remove list highlight
+- ✅ **Enter for today** - When unfocused, Enter goes directly to today's log (creating if needed)
+- ✅ **Smart focusing** - j/↓ focuses first item, k/↑ focuses last item when list unfocused
+- ✅ **Cleaner workflow** - Quick access to today without navigating through the list
+- ✅ **Updated help text** - Home screen help now shows "Enter: select/today | Esc: unfocus"
+- ✅ **Zero behavioral changes to focused mode** - List navigation works exactly as before when focused
+
+### Previous Session (Section-Based Navigation System)
+- ✅ **Comprehensive section navigation** - Navigate through all sections with Shift+J/K (Measurements → Running → Food → Sokay → Strength & Mobility → Notes)
+- ✅ **Field-level focus** - Tab key toggles between fields within Measurements (Weight/Waist) and Running (Miles/Elevation) sections
+- ✅ **Visual focus indicators** - Focused sections show bright colored borders, focused fields show ► symbol
+- ✅ **Enter key context awareness** - Enter opens appropriate input based on focused section/field
+- ✅ **Backward compatible shortcuts** - All existing keyboard shortcuts (f, c, w, s, m, l, t, n) still work
+- ✅ **New data model** - `FocusedSection` enum with nested `MeasurementField` and `RunningField` enums for type-safe navigation
+- ✅ **SectionNavigator** - Pure function-based navigation logic for moving between sections and toggling fields
+- ✅ **Updated all render functions** - All six sections now accept `focused_section` parameter and render focus state
+- ✅ **Smart list navigation** - j/k keys only navigate within Food/Sokay lists when those sections have focus
+- ✅ **Updated help text** - Concise help bar showing new navigation model
+- ✅ **Zero compilation warnings** - Clean build with proper type safety
+
+### Previous Session (UI Refinements - List Formatting, Delete Confirmation & Focus Highlighting)
 - ✅ **Removed numbering from Food Items list** - Food entries now display with bullet points (`-`) instead of numbers
 - ✅ **Removed numbering from Sokay list** - Sokay entries now display with bullet points (`-`) instead of numbers
 - ✅ **Consistent formatting** - Terminal UI now matches markdown export format (both use bullets)
 - ✅ **Simplified list display** - Cleaner visual presentation without unnecessary numbering
-- ✅ **Updated src/ui/screens.rs** - Modified Food list (line 256-263) and Sokay list (line 324-331) rendering
-- ✅ **Markdown already correct** - src/file_manager.rs already used bullets for both lists, no changes needed
 - ✅ **Improved delete confirmation styling** - Warning text now white instead of red, red border provides visual distinction
-- ✅ **Less error-like appearance** - Delete confirmation no longer looks like an error message
-- ✅ **Updated render_confirm_delete_day_screen** - Changed text color to white, added red border style (line 1022-1026)
 - ✅ **Focus-based highlighting** - List item highlights now only appear on the currently focused list (Food or Sokay)
 - ✅ **Conditional highlight style** - Unfocused lists use `Style::default()` for invisible highlight, focused lists use reversed style
 - ✅ **Cleaner focus indication** - Highlight disappears when switching focus with Shift+J/K, reappears when switching back
-- ✅ **Updated render_food_list_section** - Added conditional highlight logic (line 276-281)
-- ✅ **Updated render_sokay_section** - Added conditional highlight logic (line 351-356)
 
 ### Previous Session (Modal Dialog Refinements - Padding, Cursor & Wrapping Fixes)
 - ✅ **Fixed critical cursor lag bug** - cursor now properly tracks character position in real-time
@@ -345,7 +388,11 @@ Feeling strong today. Good hike in the morning.
 ### Key Data Structures
 
 - **DailyLog** - Main data model with food_entries, measurements, sokay_entries, strength_mobility, notes
-- **AppState** - Application state with daily_logs cache and current screen/selection
+- **AppState** - Application state with daily_logs cache, current screen/selection, and focused_section
+- **FocusedSection** - Enum tracking which section has focus (Measurements, Running, FoodItems, Sokay, StrengthMobility, Notes)
+- **MeasurementField** - Enum for tracking focus within Measurements section (Weight, Waist)
+- **RunningField** - Enum for tracking focus within Running section (Miles, Elevation)
+- **SectionNavigator** - Pure function-based navigation logic for section and field traversal
 - **InputHandler** - Cursor position tracking and input validation
 - **DbManager** - Async database operations with deferred cloud connection and state tracking
 - **ConnectionState** - Enum tracking sync status (Disconnected, Connecting, Connected, Error)
