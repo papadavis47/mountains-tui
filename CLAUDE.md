@@ -199,7 +199,14 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Multi-line Input Cursor Sync Fix with Word Wrapping)
+### Latest Session (Environment Variable Loading Fix)
+- ✅ **Fixed cloud sync for installed binary** - binary now loads `.env` from data directory (`~/.mountains/.env`)
+- ✅ **Directory-independent operation** - app now syncs to Turso Cloud from any directory
+- ✅ **Dual .env loading** - checks data directory first, falls back to current directory for development
+- ✅ **Zero configuration changes** - existing setup works unchanged
+- ✅ **Improved portability** - installed binary behaves consistently regardless of working directory
+
+### Previous Session (Multi-line Input Cursor Sync Fix with Word Wrapping)
 - ✅ **Fixed cursor desync in multi-line inputs** - cursor now stays perfectly synced with typed text even after line wrapping
 - ✅ **Word-based wrapping** - implemented smart word-wrapping that keeps words together when possible
 - ✅ **Graceful long-word handling** - words longer than line width break at character boundaries

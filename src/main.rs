@@ -35,9 +35,10 @@ use crate::app::App;
 /// If any operation fails, the error bubbles up and can be handled.
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load environment variables from .env file
+    // Load environment variables from .env file in data directory
     // This is required for Turso database URL and auth token
-    dotenvy::dotenv().ok(); // ok() makes it optional - won't fail if .env doesn't exist
+    load_env_from_data_dir();
+
     // Terminal setup phase
     // These operations prepare the terminal for TUI mode
     setup_terminal()?;
@@ -62,6 +63,26 @@ async fn main() -> Result<()> {
     // Return the result of running the application
     // If there was an error, it will be propagated to the caller
     result
+}
+
+/// Loads environment variables from .env file in the data directory
+///
+/// This looks for ~/.mountains/.env and loads environment variables from it.
+/// This allows the installed binary to find Turso credentials regardless of
+/// the current working directory.
+///
+/// If the .env file doesn't exist, this silently continues (offline mode).
+fn load_env_from_data_dir() {
+    if let Some(home_dir) = dirs::home_dir() {
+        let data_dir = home_dir.join(".mountains");
+        let env_file = data_dir.join(".env");
+
+        if env_file.exists() {
+            dotenvy::from_path(&env_file).ok();
+        }
+    }
+    // Fallback: also try to load from current directory (for development)
+    dotenvy::dotenv().ok();
 }
 
 /// Sets up the terminal for TUI mode
