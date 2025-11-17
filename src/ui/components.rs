@@ -4,6 +4,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, BorderType, Borders, Padding, Paragraph},
 };
 
@@ -15,11 +16,6 @@ pub fn create_title_style() -> Style {
     Style::default()
         .fg(Color::Cyan)
         .add_modifier(Modifier::BOLD)
-}
-
-/// Creates the standard help text styling used throughout the application
-pub fn create_help_style() -> Style {
-    Style::default().fg(Color::Gray)
 }
 
 /// Creates the standard input field styling (yellow text)
@@ -70,12 +66,49 @@ pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
     f.render_widget(title_widget, area);
 }
 
-/// Renders a help text widget with the application's standard styling
+/// Renders a help text widget with colored keybindings
 ///
-/// Help text is displayed in gray at the bottom of most screens.
+/// Help text is displayed at the bottom of most screens.
+/// Keybindings are highlighted in yellow for better visual clarity.
+/// Format: "key: description | key: description"
 pub fn render_help(f: &mut Frame, area: Rect, help_text: &str) {
-    let help_widget = Paragraph::new(help_text)
-        .style(create_help_style())
+    let mut spans = Vec::new();
+
+    // Split by pipe separator to get individual commands
+    for (i, segment) in help_text.split('|').enumerate() {
+        if i > 0 {
+            // Add the pipe separator in white
+            spans.push(Span::styled(" | ", Style::default().fg(Color::White)));
+        }
+
+        let trimmed = segment.trim();
+
+        // Split by colon to separate key from description
+        if let Some(colon_pos) = trimmed.find(':') {
+            let key_part = trimmed[..colon_pos].trim();
+            let desc_part = trimmed[colon_pos + 1..].trim();
+
+            // Key in yellow
+            spans.push(Span::styled(
+                key_part.to_string(),
+                Style::default().fg(Color::Yellow)
+            ));
+
+            // Colon and description in white
+            spans.push(Span::styled(
+                format!(": {}", desc_part),
+                Style::default().fg(Color::White)
+            ));
+        } else {
+            // If no colon, just display in white
+            spans.push(Span::styled(
+                trimmed.to_string(),
+                Style::default().fg(Color::White)
+            ));
+        }
+    }
+
+    let help_widget = Paragraph::new(Line::from(spans))
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(help_widget, area);
 }
