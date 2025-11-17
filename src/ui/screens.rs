@@ -235,7 +235,8 @@ fn render_measurements_section(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("Measurements"),
+                .title("Measurements")
+                .padding(ratatui::widgets::Padding::horizontal(1)),
         );
     f.render_widget(measurements_widget, area);
 }
@@ -319,7 +320,8 @@ fn render_running_section(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("Running"),
+                .title("Running")
+                .padding(ratatui::widgets::Padding::horizontal(1)),
         );
     f.render_widget(running_widget, area);
 }
@@ -507,7 +509,8 @@ fn render_strength_mobility_section(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("Strength & Mobility"),
+                .title("Strength & Mobility")
+                .padding(ratatui::widgets::Padding::horizontal(1)),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(sm_widget, area);
@@ -560,7 +563,8 @@ fn render_notes_section(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(border_style)
-                .title("Notes"),
+                .title("Notes")
+                .padding(ratatui::widgets::Padding::horizontal(1)),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(notes_widget, area);
