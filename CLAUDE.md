@@ -172,7 +172,55 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Dual-List DailyView with Focus Switching)
+### Latest Session (UI Refinements - List Formatting, Delete Confirmation & Focus Highlighting)
+- ✅ **Removed numbering from Food Items list** - Food entries now display with bullet points (`-`) instead of numbers
+- ✅ **Removed numbering from Sokay list** - Sokay entries now display with bullet points (`-`) instead of numbers
+- ✅ **Consistent formatting** - Terminal UI now matches markdown export format (both use bullets)
+- ✅ **Simplified list display** - Cleaner visual presentation without unnecessary numbering
+- ✅ **Updated src/ui/screens.rs** - Modified Food list (line 256-263) and Sokay list (line 324-331) rendering
+- ✅ **Markdown already correct** - src/file_manager.rs already used bullets for both lists, no changes needed
+- ✅ **Improved delete confirmation styling** - Warning text now white instead of red, red border provides visual distinction
+- ✅ **Less error-like appearance** - Delete confirmation no longer looks like an error message
+- ✅ **Updated render_confirm_delete_day_screen** - Changed text color to white, added red border style (line 1022-1026)
+- ✅ **Focus-based highlighting** - List item highlights now only appear on the currently focused list (Food or Sokay)
+- ✅ **Conditional highlight style** - Unfocused lists use `Style::default()` for invisible highlight, focused lists use reversed style
+- ✅ **Cleaner focus indication** - Highlight disappears when switching focus with Shift+J/K, reappears when switching back
+- ✅ **Updated render_food_list_section** - Added conditional highlight logic (line 276-281)
+- ✅ **Updated render_sokay_section** - Added conditional highlight logic (line 351-356)
+
+### Previous Session (Modal Dialog Refinements - Padding, Cursor & Wrapping Fixes)
+- ✅ **Fixed critical cursor lag bug** - cursor now properly tracks character position in real-time
+- ✅ **Implemented character-based wrapping** - replaced ratatui's word-wrapping with manual character-boundary wrapping
+- ✅ **Added `wrap_text_at_chars()` helper** - wraps text at exact character width for predictable cursor positioning
+- ✅ **Eliminated word-wrap desync** - text now wraps exactly where cursor calculation expects it to
+- ✅ **Arrow key navigation fully functional** - left/right/up/down arrow keys work in multiline inputs (already implemented)
+- ✅ **Byte index vs character count fix** - cursor_position is a UTF-8 byte index, now correctly converted to character count
+- ✅ **Proper UTF-8 handling** - multi-byte characters (emojis, special punctuation) no longer cause cursor desync
+- ✅ **Boundary condition handling** - cursor correctly wraps when positioned right after last character that fills the line width
+- ✅ **Fixed multi-line cursor positioning** - cursor now correctly follows text in Strength & Mobility and Notes inputs
+- ✅ **Fixed line wrapping cursor bug** - cursor now stays in sync when text wraps to next line (off-by-one error fixed)
+- ✅ **Updated `calculate_multiline_cursor_position()`** - removed incorrect border offset since inner_area already excludes borders/padding
+- ✅ **Improved wrapping logic** - now checks if character would exceed width BEFORE incrementing, not after (matches ratatui's Paragraph behavior)
+- ✅ **Added horizontal padding** - all single-line inputs now have `Padding::horizontal(1)` for comfortable spacing
+- ✅ **Added uniform padding** - multi-line inputs have `Padding::uniform(1)` for vertical and horizontal spacing
+- ✅ **Reduced numeric input sizes** - Weight/Waist/Miles/Elevation modals now 30% width, 15% height (was 40% x 20%)
+- ✅ **Compact and clean** - smaller dialogs for numeric inputs, proper spacing between text and borders
+- ✅ **Padding properly accounted** - `block.inner()` removes both borders AND padding before cursor calculation
+- ✅ **Zero compiler warnings** - application builds cleanly
+
+### Previous Session (Modal Dialog Input Screens)
+- ✅ **Centered modal dialogs** - all input screens now appear as small centered popups instead of full-screen
+- ✅ **Daily view remains visible** - background view stays visible during input for better context
+- ✅ **Clear widget usage** - prevents visual artifacts by clearing popup area before rendering
+- ✅ **Optimized sizes** - single-line inputs (50% width, 25% height), numeric inputs (30% width, 15% height), multi-line inputs (60% width, 40% height)
+- ✅ **Colored borders** - Yellow for food/measurements, Magenta for sokay, Cyan for strength/mobility, Green for notes, LightRed for running metrics
+- ✅ **`centered_rect()` helper** - reusable function in ui/components.rs using Layout with Flex::Center
+- ✅ **Updated all input screens** - Add/Edit Food, Add/Edit Sokay, Edit Weight/Waist/Miles/Elevation, Edit Strength & Mobility, Edit Notes
+- ✅ **Removed dead code** - cleaned up unused `render_input_field`, `render_multiline_input_field`, and `calculate_cursor_position` helper functions
+- ✅ **Zero compiler warnings** - application builds cleanly
+- ✅ **Better UX** - users can see the daily log while entering data, reducing need to remember context
+
+### Previous Session (Dual-List DailyView with Focus Switching)
 - ✅ **Scrollable Sokay list** - converted from Paragraph to List widget with full navigation support
 - ✅ **Equal-sized lists** - Sokay section now matches Food section size (Constraint::Min(4))
 - ✅ **Focus switching** - Shift+J/K switches focus between Food and Sokay lists

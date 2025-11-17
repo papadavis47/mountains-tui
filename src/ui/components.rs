@@ -2,7 +2,7 @@
 /// across multiple screens.
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Direction, Flex, Layout, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, BorderType, Borders, Padding, Paragraph},
 };
@@ -92,12 +92,26 @@ pub fn format_input_with_cursor(input: &str) -> String {
     }
 }
 
-/// Calculates the terminal cursor position for an input field
+/// Creates a centered rectangle using a percentage of the available area
 ///
-/// Returns the (x, y) coordinates where the terminal cursor should be placed.
-/// Takes into account the widget's border (hence the +1 offsets).
-pub fn calculate_cursor_position(input_area: Rect, cursor_pos: usize) -> (u16, u16) {
-    let cursor_x = input_area.x + 1 + cursor_pos as u16; // +1 for border
-    let cursor_y = input_area.y + 1; // +1 for border
-    (cursor_x, cursor_y)
+/// This function is used to create modal/popup dialogs that appear centered
+/// on the screen and take up only a portion of the available space.
+///
+/// # Arguments
+/// * `area` - The full terminal area
+/// * `percent_x` - Percentage of width to use (0-100)
+/// * `percent_y` - Percentage of height to use (0-100)
+///
+/// # Example
+/// ```
+/// let popup_area = centered_rect(frame.area(), 50, 30); // 50% width, 30% height
+/// ```
+pub fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
+    let vertical = Layout::vertical([Constraint::Percentage(percent_y)])
+        .flex(Flex::Center)
+        .split(area);
+    let horizontal = Layout::horizontal([Constraint::Percentage(percent_x)])
+        .flex(Flex::Center)
+        .split(vertical[0]);
+    horizontal[0]
 }

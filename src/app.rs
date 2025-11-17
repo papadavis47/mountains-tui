@@ -633,7 +633,10 @@ impl App {
             AppScreen::AddFood => {
                 screens::render_add_food_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -641,7 +644,10 @@ impl App {
             AppScreen::EditFood(_) => {
                 screens::render_edit_food_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -649,7 +655,10 @@ impl App {
             AppScreen::EditWeight => {
                 screens::render_edit_weight_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -657,7 +666,10 @@ impl App {
             AppScreen::EditWaist => {
                 screens::render_edit_waist_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -665,7 +677,10 @@ impl App {
             AppScreen::EditStrengthMobility => {
                 screens::render_edit_strength_mobility_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -673,7 +688,10 @@ impl App {
             AppScreen::EditNotes => {
                 screens::render_edit_notes_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -681,7 +699,10 @@ impl App {
             AppScreen::EditMiles => {
                 screens::render_edit_miles_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -689,7 +710,10 @@ impl App {
             AppScreen::EditElevation => {
                 screens::render_edit_elevation_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -697,7 +721,10 @@ impl App {
             AppScreen::AddSokay => {
                 screens::render_add_sokay_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );
@@ -705,7 +732,10 @@ impl App {
             AppScreen::EditSokay(_) => {
                 screens::render_edit_sokay_screen(
                     f,
-                    self.state.selected_date,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                     &self.input_handler.input_buffer,
                     self.input_handler.cursor_position,
                 );

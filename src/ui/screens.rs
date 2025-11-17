@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::models::{AppState, DailyLog};
@@ -253,13 +253,11 @@ fn render_food_list_section(
         if log.food_entries.is_empty() {
             vec![ListItem::new("No food entries yet. Press 'f' to add one.")]
         } else {
-            // Enumerate gives us both the index and the item
+            // Format each entry with a bullet point
             log.food_entries
                 .iter()
-                .enumerate()
-                .map(|(i, entry)| {
-                    // Format each entry with its number
-                    let display = format!("{}. {}", i + 1, entry.name);
+                .map(|entry| {
+                    let display = format!("- {}", entry.name);
                     ListItem::new(display)
                 })
                 .collect()
@@ -275,6 +273,13 @@ fn render_food_list_section(
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
+    // Determine highlight style based on focus
+    let highlight_style = if *focused_list == crate::models::FocusedList::Food {
+        create_highlight_style() // Show highlight when focused
+    } else {
+        Style::default() // No highlight when unfocused
+    };
+
     // Create and render the food list
     let list = List::new(items)
         .block(
@@ -284,7 +289,7 @@ fn render_food_list_section(
                 .title("Food Items")
                 .padding(ratatui::widgets::Padding::horizontal(1)),
         )
-        .highlight_style(create_highlight_style());
+        .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, food_list_state);
 }
 
@@ -323,11 +328,11 @@ fn render_sokay_section(
         if log.sokay_entries.is_empty() {
             vec![ListItem::new("No sokay entries yet. Press 'c' to add one.")]
         } else {
+            // Format each entry with a bullet point
             log.sokay_entries
                 .iter()
-                .enumerate()
-                .map(|(i, entry)| {
-                    let display = format!("{}. {}", i + 1, entry);
+                .map(|entry| {
+                    let display = format!("- {}", entry);
                     ListItem::new(display)
                 })
                 .collect()
@@ -343,6 +348,13 @@ fn render_sokay_section(
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
+    // Determine highlight style based on focus
+    let highlight_style = if *focused_list == crate::models::FocusedList::Sokay {
+        create_highlight_style() // Show highlight when focused
+    } else {
+        Style::default() // No highlight when unfocused
+    };
+
     // Create and render the sokay list
     let list = List::new(items)
         .block(
@@ -352,7 +364,7 @@ fn render_sokay_section(
                 .title(title)
                 .padding(ratatui::widgets::Padding::horizontal(1)),
         )
-        .highlight_style(create_highlight_style());
+        .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, sokay_list_state);
 }
 
@@ -432,399 +444,568 @@ fn render_notes_section(
     f.render_widget(notes_widget, area);
 }
 
-/// Renders the add food entry screen
+/// Renders the add food entry screen as a centered modal dialog
 ///
 /// This screen allows users to input a new food item name.
-/// It includes a text input field with cursor support.
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_add_food_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Render title
-    let title = format!("Add Food - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (50% width, 25% height)
+    let popup_area = centered_rect(f.area(), 50, 25);
 
-    // Render input field with cursor positioning
-    render_input_field(f, chunks[1], "Food Name", input_buffer, cursor_position);
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    // Render help text
-    render_help(
-        f,
-        chunks[2],
-        "Type food name and press Enter to save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Add Food - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Yellow))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the edit food entry screen
+/// Renders the edit food entry screen as a centered modal dialog
 ///
 /// Similar to add food screen but for editing existing entries.
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_food_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Food - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (50% width, 25% height)
+    let popup_area = centered_rect(f.area(), 50, 25);
 
-    render_input_field(f, chunks[1], "Food Name", input_buffer, cursor_position);
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Edit food name and press Enter to save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Food - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Yellow))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the edit weight screen
+/// Renders the edit weight screen as a centered modal dialog
 ///
 /// Allows users to input their weight in pounds (numeric input only).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_weight_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Weight - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (30% width, 15% height for numeric input)
+    let popup_area = centered_rect(f.area(), 30, 15);
 
-    render_input_field(f, chunks[1], "Weight (lbs)", input_buffer, cursor_position);
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Enter weight in lbs (numbers and decimal only) | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Weight - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Yellow))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the edit waist measurement screen
+/// Renders the edit waist measurement screen as a centered modal dialog
 ///
 /// Allows users to input their waist size in inches (numeric input only).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_waist_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Waist Size - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (30% width, 15% height for numeric input)
+    let popup_area = centered_rect(f.area(), 30, 15);
 
-    render_input_field(
-        f,
-        chunks[1],
-        "Waist Size (inches)",
-        input_buffer,
-        cursor_position,
-    );
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Enter waist size in inches (numbers and decimal only) | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Waist Size - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Yellow))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Helper function to render an input field with cursor positioning
-///
-/// This function handles the common pattern of:
-/// 1. Rendering a text input field
-/// 2. Setting the terminal cursor position for text editing
-///
-/// The cursor positioning is crucial for a good user experience in terminal UIs.
-fn render_input_field(
-    f: &mut Frame,
-    area: ratatui::layout::Rect,
-    title: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    // Format the input text (shows space if empty for cursor visibility)
-    let input_with_cursor = format_input_with_cursor(input_buffer);
-
-    // Create and render the input widget
-    let input = Paragraph::new(input_with_cursor)
-        .style(create_input_style())
-        .block(Block::default().borders(Borders::ALL).title(title));
-    f.render_widget(input, area);
-
-    // Set the terminal cursor position
-    let (cursor_x, cursor_y) = calculate_cursor_position(area, cursor_position);
-    f.set_cursor_position((cursor_x, cursor_y));
-}
-
-/// Renders the edit strength & mobility screen
+/// Renders the edit strength & mobility screen as a centered modal dialog
 ///
 /// Allows users to write multi-line text about their strength and mobility exercises.
-/// This screen provides a larger text area for describing training activities.
+/// It overlays the daily view with a larger centered dialog box for multi-line editing.
 pub fn render_edit_strength_mobility_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    // Create a layout with more space for the strength & mobility area
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Length(5), // Title (increased for vertical padding)
-            Constraint::Min(8),    // Strength & Mobility area (larger than normal input)
-            Constraint::Length(4), // Help text (slightly larger for multi-line help)
-        ])
-        .split(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
+    // Create centered popup area (60% width, 40% height for multi-line input)
+    let popup_area = centered_rect(f.area(), 60, 40);
+
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
+
+    // Create the dialog block with title and padding
     let title = format!(
         "Edit Strength & Mobility - {}",
-        selected_date.format("%B %d, %Y")
+        state.selected_date.format("%B %d, %Y")
     );
-    render_title(f, chunks[0], &title);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Cyan))
+        .padding(ratatui::widgets::Padding::uniform(1));
 
-    // Render a larger text area for strength & mobility exercises
-    render_multiline_input_field(
-        f,
-        chunks[1],
-        "Strength & Mobility Exercises",
-        input_buffer,
-        cursor_position,
-    );
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
 
-    // Provide more detailed help for strength & mobility editing
-    let help_text = "Record your strength and mobility exercises for the day\n\
-                     Enter: Save | Esc: Cancel\n\
-                     Use arrow keys to navigate, Home/End to jump";
-
-    let help_widget = Paragraph::new(help_text)
-        .style(create_help_style())
-        .block(Block::default().borders(Borders::ALL).title("Help"))
-        .wrap(ratatui::widgets::Wrap { trim: true });
-    f.render_widget(help_widget, chunks[2]);
-}
-
-/// Renders the edit notes screen
-///
-/// Allows users to write multi-paragraph notes about their day.
-/// This screen provides a larger text area for longer form writing.
-pub fn render_edit_notes_screen(
-    f: &mut Frame,
-    selected_date: NaiveDate,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    // Create a layout with more space for the notes area
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Length(5), // Title (increased for vertical padding)
-            Constraint::Min(8),    // Notes area (larger than normal input)
-            Constraint::Length(4), // Help text (slightly larger for multi-line help)
-        ])
-        .split(f.area());
-
-    let title = format!("Edit Notes - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
-
-    // Render a larger text area for notes
-    render_multiline_input_field(f, chunks[1], "Daily Notes", input_buffer, cursor_position);
-
-    // Provide more detailed help for notes editing
-    let help_text = "Write your thoughts, feelings, or observations about the day\n\
-                     Enter: Save | Esc: Cancel\n\
-                     Use arrow keys to navigate, Home/End to jump";
-
-    let help_widget = Paragraph::new(help_text)
-        .style(create_help_style())
-        .block(Block::default().borders(Borders::ALL).title("Help"))
-        .wrap(ratatui::widgets::Wrap { trim: true });
-    f.render_widget(help_widget, chunks[2]);
-}
-
-/// Helper function to render a multi-line input field for notes
-///
-/// This function creates a larger text area suitable for multi-paragraph input.
-/// It handles text wrapping and cursor positioning for longer text.
-fn render_multiline_input_field(
-    f: &mut Frame,
-    area: ratatui::layout::Rect,
-    title: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    // For multi-line input, we need to handle text wrapping
+    // Manually wrap text at character boundaries to match our cursor calculation
     let display_text = if input_buffer.is_empty() {
-        " ".to_string() // Show space for cursor when empty
+        " ".to_string()
     } else {
-        input_buffer.to_string()
+        // Wrap at exact character width to ensure cursor positioning matches display
+        wrap_text_at_chars(input_buffer, inner_area.width as usize)
     };
 
-    // Create and render the input widget with text wrapping
-    let input = Paragraph::new(display_text)
-        .style(create_input_style())
-        .block(Block::default().borders(Borders::ALL).title(title))
-        .wrap(ratatui::widgets::Wrap { trim: false }); // Don't trim for notes
-    f.render_widget(input, area);
+    let input = Paragraph::new(display_text.clone())
+        .style(create_input_style());
+        // NO .wrap() - we've already wrapped the text manually
+    f.render_widget(input, inner_area);
 
-    // Calculate cursor position for multi-line text
+    // Calculate cursor position using the SAME wrapped text that we're displaying
+    // This is critical - cursor calc must match the displayed text exactly
     let (cursor_x, cursor_y) =
-        calculate_multiline_cursor_position(area, input_buffer, cursor_position);
+        calculate_multiline_cursor_position(inner_area, &display_text, cursor_position);
     f.set_cursor_position((cursor_x, cursor_y));
 }
 
-/// Calculates cursor position for multi-line text input
+/// Renders the edit notes screen as a centered modal dialog
 ///
-/// This function handles cursor positioning in multi-line text by:
-/// 1. Counting newlines up to the cursor position
-/// 2. Finding the column position on the current line
-/// 3. Accounting for text wrapping within the widget bounds
+/// Allows users to write multi-paragraph notes about their day.
+/// It overlays the daily view with a larger centered dialog box for multi-line editing.
+pub fn render_edit_notes_screen(
+    f: &mut Frame,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+
+    // Create centered popup area (60% width, 40% height for multi-line input)
+    let popup_area = centered_rect(f.area(), 60, 40);
+
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
+
+    // Create the dialog block with title and padding
+    let title = format!("Edit Notes - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Green))
+        .padding(ratatui::widgets::Padding::uniform(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Manually wrap text at character boundaries to match our cursor calculation
+    let display_text = if input_buffer.is_empty() {
+        " ".to_string()
+    } else {
+        // Wrap at exact character width to ensure cursor positioning matches display
+        wrap_text_at_chars(input_buffer, inner_area.width as usize)
+    };
+
+    let input = Paragraph::new(display_text.clone())
+        .style(create_input_style());
+        // NO .wrap() - we've already wrapped the text manually
+    f.render_widget(input, inner_area);
+
+    // Calculate cursor position using the SAME wrapped text that we're displaying
+    // This is critical - cursor calc must match the displayed text exactly
+    let (cursor_x, cursor_y) =
+        calculate_multiline_cursor_position(inner_area, &display_text, cursor_position);
+    f.set_cursor_position((cursor_x, cursor_y));
+}
+
+/// Manually wraps text at character boundaries (not word boundaries)
+///
+/// This function takes text and wraps it at exactly `width` characters per line,
+/// preserving explicit newlines. This allows us to have predictable cursor positioning.
+fn wrap_text_at_chars(text: &str, width: usize) -> String {
+    if width == 0 {
+        return text.to_string();
+    }
+
+    let mut result = String::new();
+    let mut current_line_len = 0;
+
+    for ch in text.chars() {
+        if ch == '\n' {
+            // Explicit newline - preserve it
+            result.push('\n');
+            current_line_len = 0;
+        } else {
+            // Check if we need to wrap before adding this character
+            if current_line_len >= width {
+                result.push('\n');
+                current_line_len = 0;
+            }
+            result.push(ch);
+            current_line_len += 1;
+        }
+    }
+
+    result
+}
+
+/// Calculates cursor position for multi-line text input with character-based wrapping
+///
+/// This function works with our manual character-based wrapping (wrap_text_at_chars).
+/// Since we wrap at exact character boundaries, cursor calculation is straightforward:
+/// just count characters and newlines up to the cursor position.
+///
+/// IMPORTANT: cursor_pos is a BYTE index into the UTF-8 string, not a character count!
 fn calculate_multiline_cursor_position(
     area: ratatui::layout::Rect,
     text: &str,
-    cursor_pos: usize,
+    cursor_pos_bytes: usize,
 ) -> (u16, u16) {
-    let widget_width = area.width.saturating_sub(2) as usize; // Account for borders
-    let text_up_to_cursor = if cursor_pos <= text.len() {
-        &text[..cursor_pos]
+    // Convert byte index to character count
+    let cursor_pos_chars = if cursor_pos_bytes <= text.len() {
+        text[..cursor_pos_bytes].chars().count()
     } else {
-        text
+        text.chars().count()
     };
 
-    // Count actual newlines and calculate position
+    // Simply count newlines and column position up to cursor
+    // No complex wrapping logic needed since text is already wrapped
     let mut line = 0;
     let mut col = 0;
+    let mut char_count = 0;
 
-    for ch in text_up_to_cursor.chars() {
+    for ch in text.chars() {
+        if char_count >= cursor_pos_chars {
+            break;
+        }
+
         if ch == '\n' {
             line += 1;
             col = 0;
         } else {
             col += 1;
-            // Handle text wrapping
-            if col >= widget_width {
-                line += 1;
-                col = 0;
-            }
         }
+
+        char_count += 1;
     }
 
-    // Convert to terminal coordinates (accounting for borders)
-    let cursor_x = area.x + 1 + col as u16;
-    let cursor_y = area.y + 1 + line as u16;
+    let cursor_x = area.x + col as u16;
+    let cursor_y = area.y + line as u16;
 
     (cursor_x, cursor_y)
 }
 
-/// Renders the edit miles screen
+/// Renders the edit miles screen as a centered modal dialog
 ///
 /// Allows users to input miles covered (numeric input with decimal).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_miles_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Miles - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (30% width, 15% height for numeric input)
+    let popup_area = centered_rect(f.area(), 30, 15);
 
-    render_input_field(f, chunks[1], "Miles Covered", input_buffer, cursor_position);
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Enter miles (walking/hiking/running, numbers and decimal) | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Miles - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::LightRed))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the edit elevation screen
+/// Renders the edit elevation screen as a centered modal dialog
 ///
 /// Allows users to input elevation gain in feet (integer input only).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_elevation_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Elevation - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (30% width, 15% height for numeric input)
+    let popup_area = centered_rect(f.area(), 30, 15);
 
-    render_input_field(
-        f,
-        chunks[1],
-        "Elevation Gain (feet)",
-        input_buffer,
-        cursor_position,
-    );
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Enter elevation gain in feet (integers only) | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Elevation - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::LightRed))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the add sokay screen
+/// Renders the add sokay screen as a centered modal dialog
 ///
 /// Allows users to add a new sokay entry (text input).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_add_sokay_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Add Sokay Entry - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (50% width, 25% height)
+    let popup_area = centered_rect(f.area(), 50, 25);
 
-    render_input_field(
-        f,
-        chunks[1],
-        "Sokay Entry (e.g., 'Coca Cola', 'chocolate bar')",
-        input_buffer,
-        cursor_position,
-    );
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Enter sokay item description | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Add Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Magenta))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
-/// Renders the edit sokay screen
+/// Renders the edit sokay screen as a centered modal dialog
 ///
 /// Allows users to edit an existing sokay entry (text input).
+/// It overlays the daily view with a small centered dialog box.
 pub fn render_edit_sokay_screen(
     f: &mut Frame,
-    selected_date: NaiveDate,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let chunks = create_standard_layout(f.area());
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    let title = format!("Edit Sokay Entry - {}", selected_date.format("%B %d, %Y"));
-    render_title(f, chunks[0], &title);
+    // Create centered popup area (50% width, 25% height)
+    let popup_area = centered_rect(f.area(), 50, 25);
 
-    render_input_field(f, chunks[1], "Sokay Entry", input_buffer, cursor_position);
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
 
-    render_help(
-        f,
-        chunks[2],
-        "Edit sokay item description | Enter: save | Esc: cancel",
-    );
+    // Create the dialog block with title and padding
+    let title = format!("Edit Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Magenta))
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    // Get the inner area for the input text (after borders and padding)
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    // Render the input text
+    let input_text = format_input_with_cursor(input_buffer);
+    let input = Paragraph::new(input_text)
+        .style(create_input_style());
+    f.render_widget(input, inner_area);
+
+    // Set cursor position (inner area already accounts for borders and padding)
+    f.set_cursor_position((
+        inner_area.x + cursor_position as u16,
+        inner_area.y,
+    ));
 }
 
 /// Renders the delete day confirmation screen
@@ -852,10 +1033,11 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
     );
 
     let warning_widget = Paragraph::new(warning_text)
-        .style(Style::default().fg(Color::Red))
+        .style(Style::default().fg(Color::White))
         .block(
             Block::default()
                 .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red))
                 .title("Warning: Permanent Deletion"),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });

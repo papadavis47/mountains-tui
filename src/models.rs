@@ -1,5 +1,3 @@
-/// This module contains all the core data structures used throughout the application.
-///
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
