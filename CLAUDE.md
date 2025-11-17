@@ -199,7 +199,20 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Home Screen Unfocus & Today Quick Access)
+### Latest Session (Multi-line Input Cursor Sync Fix with Word Wrapping)
+- ✅ **Fixed cursor desync in multi-line inputs** - cursor now stays perfectly synced with typed text even after line wrapping
+- ✅ **Word-based wrapping** - implemented smart word-wrapping that keeps words together when possible
+- ✅ **Graceful long-word handling** - words longer than line width break at character boundaries
+- ✅ **Controlled wrapping algorithm** - implemented `wrap_at_width()` function using `split_inclusive` for word-aware logic
+- ✅ **Identical cursor calculation** - `calculate_cursor_in_wrapped_text()` uses exact same `split_inclusive` approach as display
+- ✅ **Fixed space bar visibility** - cursor now moves forward immediately when pressing space
+- ✅ **Fixed word-wrap sync** - rewrote cursor calculation to process words identically to display wrapping
+- ✅ **Eliminated lag and drift** - cursor position matches displayed text character-for-character, even at wrap boundaries
+- ✅ **Applied to both editors** - Strength & Mobility and Notes multi-line inputs both use synchronized word wrapping
+- ✅ **Removed deprecated code** - cleaned up old wrapping implementation
+- ✅ **Zero compilation warnings** - clean build with proper implementation
+
+### Previous Session (Home Screen Unfocus & Today Quick Access)
 - ✅ **Unfocused initial state** - Home screen starts with no item highlighted for quick access to today
 - ✅ **Esc to unfocus** - Press Esc on home screen to remove list highlight
 - ✅ **Enter for today** - When unfocused, Enter goes directly to today's log (creating if needed)

@@ -795,23 +795,22 @@ pub fn render_edit_strength_mobility_screen(
     let inner_area = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
-    // Manually wrap text at character boundaries to match our cursor calculation
-    let display_text = if input_buffer.is_empty() {
+    // Manually wrap text at character boundaries for predictable cursor positioning
+    let width = inner_area.width as usize;
+    let wrapped_text = if input_buffer.is_empty() {
         " ".to_string()
     } else {
-        // Wrap at exact character width to ensure cursor positioning matches display
-        wrap_text_at_chars(input_buffer, inner_area.width as usize)
+        wrap_at_width(input_buffer, width)
     };
 
-    let input = Paragraph::new(display_text.clone())
+    let input = Paragraph::new(wrapped_text.clone())
         .style(create_input_style());
-        // NO .wrap() - we've already wrapped the text manually
+    // NO .wrap() - text is already wrapped manually
     f.render_widget(input, inner_area);
 
-    // Calculate cursor position using the SAME wrapped text that we're displaying
-    // This is critical - cursor calc must match the displayed text exactly
+    // Calculate cursor position on the wrapped text
     let (cursor_x, cursor_y) =
-        calculate_multiline_cursor_position(inner_area, &display_text, cursor_position);
+        calculate_cursor_in_wrapped_text(inner_area, input_buffer, cursor_position, width);
     f.set_cursor_position((cursor_x, cursor_y));
 }
 
@@ -849,95 +848,301 @@ pub fn render_edit_notes_screen(
     let inner_area = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
-    // Manually wrap text at character boundaries to match our cursor calculation
-    let display_text = if input_buffer.is_empty() {
+    // Manually wrap text at character boundaries for predictable cursor positioning
+    let width = inner_area.width as usize;
+    let wrapped_text = if input_buffer.is_empty() {
         " ".to_string()
     } else {
-        // Wrap at exact character width to ensure cursor positioning matches display
-        wrap_text_at_chars(input_buffer, inner_area.width as usize)
+        wrap_at_width(input_buffer, width)
     };
 
-    let input = Paragraph::new(display_text.clone())
+    let input = Paragraph::new(wrapped_text.clone())
         .style(create_input_style());
-        // NO .wrap() - we've already wrapped the text manually
+    // NO .wrap() - text is already wrapped manually
     f.render_widget(input, inner_area);
 
-    // Calculate cursor position using the SAME wrapped text that we're displaying
-    // This is critical - cursor calc must match the displayed text exactly
+    // Calculate cursor position on the wrapped text
     let (cursor_x, cursor_y) =
-        calculate_multiline_cursor_position(inner_area, &display_text, cursor_position);
+        calculate_cursor_in_wrapped_text(inner_area, input_buffer, cursor_position, width);
     f.set_cursor_position((cursor_x, cursor_y));
 }
 
-/// Manually wraps text at character boundaries (not word boundaries)
+/// Wraps text at word boundaries to fit within a given width
 ///
-/// This function takes text and wraps it at exactly `width` characters per line,
-/// preserving explicit newlines. This allows us to have predictable cursor positioning.
-fn wrap_text_at_chars(text: &str, width: usize) -> String {
+/// This function performs word-based wrapping similar to text editors.
+/// It preserves explicit newlines and tries to keep words together.
+/// If a word is too long to fit on one line, it breaks at character boundaries.
+/// This gives us complete control over line wrapping for accurate cursor positioning.
+fn wrap_at_width(text: &str, width: usize) -> String {
     if width == 0 {
         return text.to_string();
     }
 
     let mut result = String::new();
-    let mut current_line_len = 0;
+    let mut current_line = String::new();
+    let mut current_line_width = 0;
 
-    for ch in text.chars() {
-        if ch == '\n' {
-            // Explicit newline - preserve it
-            result.push('\n');
-            current_line_len = 0;
-        } else {
-            // Check if we need to wrap before adding this character
-            if current_line_len >= width {
-                result.push('\n');
-                current_line_len = 0;
+    for word in text.split_inclusive(|c: char| c.is_whitespace() || c == '\n') {
+        // Check if this "word" contains a newline
+        if word.contains('\n') {
+            // Handle newlines - could be "\n" or "word\n"
+            let parts: Vec<&str> = word.split('\n').collect();
+
+            for (i, part) in parts.iter().enumerate() {
+                if i > 0 {
+                    // Add the current line before the newline
+                    result.push_str(&current_line);
+                    result.push('\n');
+                    current_line.clear();
+                    current_line_width = 0;
+                }
+
+                if !part.is_empty() {
+                    let part_width = part.chars().count();
+
+                    if current_line_width + part_width > width && current_line_width > 0 {
+                        // Current line would overflow, wrap first
+                        result.push_str(&current_line);
+                        result.push('\n');
+                        current_line.clear();
+                        current_line_width = 0;
+                    }
+
+                    // Add the part
+                    if part_width > width {
+                        // Word is too long, break it at character boundaries
+                        for ch in part.chars() {
+                            if current_line_width >= width {
+                                result.push_str(&current_line);
+                                result.push('\n');
+                                current_line.clear();
+                                current_line_width = 0;
+                            }
+                            current_line.push(ch);
+                            current_line_width += 1;
+                        }
+                    } else {
+                        current_line.push_str(part);
+                        current_line_width += part_width;
+                    }
+                }
             }
-            result.push(ch);
-            current_line_len += 1;
+        } else {
+            // No newline, just a regular word (possibly with trailing space)
+            let word_width = word.chars().count();
+
+            if current_line_width + word_width > width && current_line_width > 0 {
+                // Adding this word would overflow, wrap first
+                result.push_str(&current_line);
+                result.push('\n');
+                current_line.clear();
+                current_line_width = 0;
+            }
+
+            // If the word itself is longer than width, break it
+            if word_width > width {
+                for ch in word.chars() {
+                    if current_line_width >= width {
+                        result.push_str(&current_line);
+                        result.push('\n');
+                        current_line.clear();
+                        current_line_width = 0;
+                    }
+                    current_line.push(ch);
+                    current_line_width += 1;
+                }
+            } else {
+                current_line.push_str(word);
+                current_line_width += word_width;
+            }
         }
+    }
+
+    // Don't forget the last line
+    if !current_line.is_empty() {
+        result.push_str(&current_line);
     }
 
     result
 }
 
-/// Calculates cursor position for multi-line text input with character-based wrapping
+/// Calculates cursor position in manually-wrapped text with word wrapping
 ///
-/// This function works with our manual character-based wrapping (wrap_text_at_chars).
-/// Since we wrap at exact character boundaries, cursor calculation is straightforward:
-/// just count characters and newlines up to the cursor position.
+/// This function calculates cursor position by using the EXACT same approach
+/// as wrap_at_width() - processing text with split_inclusive to match perfectly.
 ///
-/// IMPORTANT: cursor_pos is a BYTE index into the UTF-8 string, not a character count!
-fn calculate_multiline_cursor_position(
+/// IMPORTANT: cursor_pos_bytes is a BYTE index into the UTF-8 string!
+fn calculate_cursor_in_wrapped_text(
     area: ratatui::layout::Rect,
-    text: &str,
+    original_text: &str,
     cursor_pos_bytes: usize,
+    width: usize,
 ) -> (u16, u16) {
+    if width == 0 {
+        return (area.x, area.y);
+    }
+
     // Convert byte index to character count
-    let cursor_pos_chars = if cursor_pos_bytes <= text.len() {
-        text[..cursor_pos_bytes].chars().count()
+    let cursor_pos_chars = if cursor_pos_bytes <= original_text.len() {
+        original_text[..cursor_pos_bytes].chars().count()
     } else {
-        text.chars().count()
+        original_text.chars().count()
     };
 
-    // Simply count newlines and column position up to cursor
-    // No complex wrapping logic needed since text is already wrapped
     let mut line = 0;
     let mut col = 0;
     let mut char_count = 0;
+    let mut current_line_width = 0;
 
-    for ch in text.chars() {
-        if char_count >= cursor_pos_chars {
+    // Use split_inclusive EXACTLY like wrap_at_width does
+    for word in original_text.split_inclusive(|c: char| c.is_whitespace() || c == '\n') {
+        // Check if we've passed the cursor position before processing this word
+        let word_char_count = word.chars().count();
+
+        if char_count + word_char_count > cursor_pos_chars {
+            // Cursor is somewhere within this word
+            let chars_into_word = cursor_pos_chars - char_count;
+
+            // Process the word up to the cursor position
+            if word.contains('\n') {
+                // Handle newlines
+                let parts: Vec<&str> = word.split('\n').collect();
+                let mut chars_processed = 0;
+
+                for (i, part) in parts.iter().enumerate() {
+                    if i > 0 {
+                        line += 1;
+                        col = 0;
+                        current_line_width = 0;
+                        chars_processed += 1; // The newline character
+
+                        if chars_processed >= chars_into_word {
+                            break;
+                        }
+                    }
+
+                    if !part.is_empty() {
+                        let part_width = part.chars().count();
+                        let chars_to_take = (chars_into_word - chars_processed).min(part_width);
+
+                        if current_line_width + part_width > width && current_line_width > 0 {
+                            line += 1;
+                            current_line_width = 0;
+                        }
+
+                        if part_width > width {
+                            // Long word - break character by character
+                            for (idx, _ch) in part.chars().enumerate() {
+                                if idx >= chars_to_take {
+                                    break;
+                                }
+                                if current_line_width >= width {
+                                    line += 1;
+                                    current_line_width = 0;
+                                }
+                                current_line_width += 1;
+                                chars_processed += 1;
+                            }
+                        } else {
+                            current_line_width += chars_to_take;
+                            chars_processed += chars_to_take;
+                        }
+
+                        col = current_line_width;
+
+                        if chars_processed >= chars_into_word {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Regular word (possibly with trailing whitespace)
+                let word_width = word.chars().count();
+
+                if current_line_width + word_width > width && current_line_width > 0 {
+                    line += 1;
+                    current_line_width = 0;
+                }
+
+                if word_width > width {
+                    // Long word - break it
+                    for (idx, _ch) in word.chars().enumerate() {
+                        if idx >= chars_into_word {
+                            break;
+                        }
+                        if current_line_width >= width {
+                            line += 1;
+                            current_line_width = 0;
+                        }
+                        current_line_width += 1;
+                    }
+                } else {
+                    current_line_width += chars_into_word;
+                }
+
+                col = current_line_width;
+            }
+
             break;
         }
 
-        if ch == '\n' {
-            line += 1;
-            col = 0;
-        } else {
-            col += 1;
-        }
+        // Process complete word (cursor is after this word)
+        char_count += word_char_count;
 
-        char_count += 1;
+        if word.contains('\n') {
+            let parts: Vec<&str> = word.split('\n').collect();
+
+            for (i, part) in parts.iter().enumerate() {
+                if i > 0 {
+                    line += 1;
+                    current_line_width = 0;
+                }
+
+                if !part.is_empty() {
+                    let part_width = part.chars().count();
+
+                    if current_line_width + part_width > width && current_line_width > 0 {
+                        line += 1;
+                        current_line_width = 0;
+                    }
+
+                    if part_width > width {
+                        for _ch in part.chars() {
+                            if current_line_width >= width {
+                                line += 1;
+                                current_line_width = 0;
+                            }
+                            current_line_width += 1;
+                        }
+                    } else {
+                        current_line_width += part_width;
+                    }
+                }
+            }
+
+            col = current_line_width;
+        } else {
+            let word_width = word.chars().count();
+
+            if current_line_width + word_width > width && current_line_width > 0 {
+                line += 1;
+                current_line_width = 0;
+            }
+
+            if word_width > width {
+                for _ch in word.chars() {
+                    if current_line_width >= width {
+                        line += 1;
+                        current_line_width = 0;
+                    }
+                    current_line_width += 1;
+                }
+            } else {
+                current_line_width += word_width;
+            }
+
+            col = current_line_width;
+        }
     }
 
     let cursor_x = area.x + col as u16;
