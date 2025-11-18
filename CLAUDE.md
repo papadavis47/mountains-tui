@@ -201,10 +201,11 @@ Feeling strong today. Good hike in the morning.
 
 ### Latest Session (UI Refinements - Modal Sizes & Title Styling)
 - ✅ **Reduced measurement modal sizes** - Weight, Waist, Miles, and Elevation input dialogs now 12% width x 8% height (previously 30% x 15%)
-- ✅ **Removed redundant dates** - Modal titles no longer show date (already visible at top of screen)
-- ✅ **Added top padding** - Numeric inputs now have 1 line of top padding for better visual spacing
+- ✅ **Reduced Food/Sokay modal heights** - Add/Edit Food and Add/Edit Sokay dialogs now 50% width x 13% height (previously 50% x 25%)
+- ✅ **Removed redundant dates** - Measurement modal titles no longer show date (already visible at top of screen)
+- ✅ **Added top padding to all inputs** - All input modals now have 1 line of top padding for better visual spacing
 - ✅ **Updated title colors** - Title text changed from Cyan to Green with orange borders (RGB: 255, 165, 0)
-- ✅ **Compact and clean** - smaller numeric input dialogs reduce visual clutter while maintaining usability
+- ✅ **Compact and clean** - smaller input dialogs reduce visual clutter while maintaining usability
 - ✅ **Still centered** - all modals remain perfectly centered in the terminal
 - ✅ **Improved focus** - smaller dialogs draw less attention away from the daily view in the background
 

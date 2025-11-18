@@ -586,8 +586,8 @@ pub fn render_add_food_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (50% width, 25% height)
-    let popup_area = centered_rect(f.area(), 50, 25);
+    // Create centered popup area (50% width, 13% height - half of previous 25%)
+    let popup_area = centered_rect(f.area(), 50, 13);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
@@ -598,7 +598,12 @@ pub fn render_add_food_screen(
         .borders(Borders::ALL)
         .title(title)
         .style(Style::default().fg(Color::Yellow))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -633,8 +638,8 @@ pub fn render_edit_food_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (50% width, 25% height)
-    let popup_area = centered_rect(f.area(), 50, 25);
+    // Create centered popup area (50% width, 13% height - half of previous 25%)
+    let popup_area = centered_rect(f.area(), 50, 13);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
@@ -645,7 +650,12 @@ pub fn render_edit_food_screen(
         .borders(Borders::ALL)
         .title(title)
         .style(Style::default().fg(Color::Yellow))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -1277,8 +1287,8 @@ pub fn render_add_sokay_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (50% width, 25% height)
-    let popup_area = centered_rect(f.area(), 50, 25);
+    // Create centered popup area (50% width, 13% height - half of previous 25%)
+    let popup_area = centered_rect(f.area(), 50, 13);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
@@ -1289,7 +1299,12 @@ pub fn render_add_sokay_screen(
         .borders(Borders::ALL)
         .title(title)
         .style(Style::default().fg(Color::Magenta))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -1324,8 +1339,8 @@ pub fn render_edit_sokay_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (50% width, 25% height)
-    let popup_area = centered_rect(f.area(), 50, 25);
+    // Create centered popup area (50% width, 13% height - half of previous 25%)
+    let popup_area = centered_rect(f.area(), 50, 13);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
@@ -1336,7 +1351,12 @@ pub fn render_edit_sokay_screen(
         .borders(Borders::ALL)
         .title(title)
         .style(Style::default().fg(Color::Magenta))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
