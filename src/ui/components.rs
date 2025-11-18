@@ -14,7 +14,7 @@ use ratatui::{
 /// Instead of duplicating styling code, we centralize it in one place.
 pub fn create_title_style() -> Style {
     Style::default()
-        .fg(Color::Cyan)
+        .fg(Color::Green)
         .add_modifier(Modifier::BOLD)
 }
 
@@ -53,7 +53,7 @@ pub fn create_standard_layout(area: Rect) -> std::rc::Rc<[Rect]> {
 /// Renders a title widget with the application's standard styling
 ///
 /// This function takes a title string and renders it in a bordered box
-/// with the standard cyan/bold styling, rounded borders, and padding on all sides.
+/// with green/bold text, orange borders (RGB: 255, 165, 0), rounded borders, and padding on all sides.
 pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
     let title_widget = Paragraph::new(title)
         .style(create_title_style())
@@ -61,6 +61,7 @@ pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(Color::Rgb(255, 165, 0))) // Orange color
                 .padding(Padding::uniform(1))
         );
     f.render_widget(title_widget, area);

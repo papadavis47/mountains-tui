@@ -680,19 +680,23 @@ pub fn render_edit_weight_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (30% width, 15% height for numeric input)
-    let popup_area = centered_rect(f.area(), 30, 15);
+    // Create centered popup area (12% width, 8% height for numeric input)
+    let popup_area = centered_rect(f.area(), 12, 8);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Edit Weight - {}", state.selected_date.format("%B %d, %Y"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title("Edit Weight")
         .style(Style::default().fg(Color::Yellow))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -727,19 +731,23 @@ pub fn render_edit_waist_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (30% width, 15% height for numeric input)
-    let popup_area = centered_rect(f.area(), 30, 15);
+    // Create centered popup area (12% width, 8% height for numeric input)
+    let popup_area = centered_rect(f.area(), 12, 8);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Edit Waist Size - {}", state.selected_date.format("%B %d, %Y"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title("Edit Waist Size")
         .style(Style::default().fg(Color::Yellow))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -1167,19 +1175,23 @@ pub fn render_edit_miles_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (30% width, 15% height for numeric input)
-    let popup_area = centered_rect(f.area(), 30, 15);
+    // Create centered popup area (12% width, 8% height for numeric input)
+    let popup_area = centered_rect(f.area(), 12, 8);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Edit Miles - {}", state.selected_date.format("%B %d, %Y"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title("Edit Miles")
         .style(Style::default().fg(Color::LightRed))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);
@@ -1214,19 +1226,23 @@ pub fn render_edit_elevation_screen(
     // First render the daily view in the background
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
 
-    // Create centered popup area (30% width, 15% height for numeric input)
-    let popup_area = centered_rect(f.area(), 30, 15);
+    // Create centered popup area (12% width, 8% height for numeric input)
+    let popup_area = centered_rect(f.area(), 12, 8);
 
     // Clear the popup area to prevent visual artifacts
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Edit Elevation - {}", state.selected_date.format("%B %d, %Y"));
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(title)
+        .title("Edit Elevation")
         .style(Style::default().fg(Color::LightRed))
-        .padding(ratatui::widgets::Padding::horizontal(1));
+        .padding(ratatui::widgets::Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 0,
+        });
 
     // Get the inner area for the input text (after borders and padding)
     let inner_area = block.inner(popup_area);

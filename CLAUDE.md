@@ -199,7 +199,16 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Environment Variable Loading Fix)
+### Latest Session (UI Refinements - Modal Sizes & Title Styling)
+- ✅ **Reduced measurement modal sizes** - Weight, Waist, Miles, and Elevation input dialogs now 12% width x 8% height (previously 30% x 15%)
+- ✅ **Removed redundant dates** - Modal titles no longer show date (already visible at top of screen)
+- ✅ **Added top padding** - Numeric inputs now have 1 line of top padding for better visual spacing
+- ✅ **Updated title colors** - Title text changed from Cyan to Green with orange borders (RGB: 255, 165, 0)
+- ✅ **Compact and clean** - smaller numeric input dialogs reduce visual clutter while maintaining usability
+- ✅ **Still centered** - all modals remain perfectly centered in the terminal
+- ✅ **Improved focus** - smaller dialogs draw less attention away from the daily view in the background
+
+### Previous Session (Environment Variable Loading Fix)
 - ✅ **Fixed cloud sync for installed binary** - binary now loads `.env` from data directory (`~/.mountains/.env`)
 - ✅ **Directory-independent operation** - app now syncs to Turso Cloud from any directory
 - ✅ **Dual .env loading** - checks data directory first, falls back to current directory for development
