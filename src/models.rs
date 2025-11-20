@@ -203,6 +203,10 @@ pub struct AppState {
     pub daily_logs: Vec<DailyLog>,
     /// Which section is currently focused in DailyView
     pub focused_section: FocusedSection,
+    /// Whether an individual item in the Food list is focused
+    pub food_list_focused: bool,
+    /// Whether an individual item in the Sokay list is focused
+    pub sokay_list_focused: bool,
 }
 
 impl AppState {
@@ -210,6 +214,7 @@ impl AppState {
     ///
     /// The application starts on the Home screen with today's date selected.
     /// Focus starts on the Measurements section (Weight field) when entering DailyView.
+    /// Lists start unfocused (no individual items highlighted).
     /// chrono::Local::now().date_naive() gets the current date in the local timezone.
     pub fn new() -> Self {
         Self {
@@ -219,6 +224,8 @@ impl AppState {
             focused_section: FocusedSection::Measurements {
                 focused_field: MeasurementField::Weight,
             },
+            food_list_focused: false,
+            sokay_list_focused: false,
         }
     }
 

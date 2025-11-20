@@ -137,10 +137,11 @@ pub fn render_daily_view_screen(
         &state.daily_logs,
         food_list_state,
         &state.focused_section,
+        state.food_list_focused,
     );
 
     // Render sokay section (cumulative count + entries)
-    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_section);
+    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_section, state.sokay_list_focused);
 
     // Render strength & mobility section
     render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs, &state.focused_section);
@@ -338,6 +339,7 @@ fn render_food_list_section(
     daily_logs: &[DailyLog],
     food_list_state: &mut ListState,
     focused_section: &FocusedSection,
+    food_list_focused: bool,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -360,16 +362,16 @@ fn render_food_list_section(
         vec![ListItem::new("No food entries yet. Press 'f' to add one.")]
     };
 
-    // Determine the border style based on focus
+    // Determine the border style based on section focus
     let border_style = if matches!(focused_section, FocusedSection::FoodItems) {
-        Style::default().fg(Color::Yellow) // Bright yellow when focused
+        Style::default().fg(Color::Yellow) // Bright yellow when section focused
     } else {
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
-    // Determine highlight style based on focus
-    let highlight_style = if matches!(focused_section, FocusedSection::FoodItems) {
-        create_highlight_style() // Show highlight when focused
+    // Determine highlight style based on BOTH section focus AND item focus
+    let highlight_style = if matches!(focused_section, FocusedSection::FoodItems) && food_list_focused {
+        create_highlight_style() // Show highlight when section AND item are focused
     } else {
         Style::default() // No highlight when unfocused
     };
@@ -399,6 +401,7 @@ fn render_sokay_section(
     daily_logs: &[DailyLog],
     sokay_list_state: &mut ListState,
     focused_section: &FocusedSection,
+    sokay_list_focused: bool,
 ) {
     // Find the log for the selected date
     let log = daily_logs.iter().find(|log| log.date == selected_date);
@@ -410,6 +413,8 @@ fn render_sokay_section(
             selected_date,
             daily_logs: daily_logs.to_vec(),
             focused_section: FocusedSection::FoodItems,
+            food_list_focused: false,
+            sokay_list_focused: false,
         },
         selected_date,
     );
@@ -435,16 +440,16 @@ fn render_sokay_section(
         vec![ListItem::new("No sokay entries yet. Press 'c' to add one.")]
     };
 
-    // Determine the border style based on focus
+    // Determine the border style based on section focus
     let border_style = if matches!(focused_section, FocusedSection::Sokay) {
-        Style::default().fg(Color::Magenta) // Bright magenta when focused
+        Style::default().fg(Color::Magenta) // Bright magenta when section focused
     } else {
         Style::default().fg(Color::DarkGray) // Dimmed when not focused
     };
 
-    // Determine highlight style based on focus
-    let highlight_style = if matches!(focused_section, FocusedSection::Sokay) {
-        create_highlight_style() // Show highlight when focused
+    // Determine highlight style based on BOTH section focus AND item focus
+    let highlight_style = if matches!(focused_section, FocusedSection::Sokay) && sokay_list_focused {
+        create_highlight_style() // Show highlight when section AND item are focused
     } else {
         Style::default() // No highlight when unfocused
     };

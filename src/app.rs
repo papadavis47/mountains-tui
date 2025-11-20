@@ -600,16 +600,20 @@ impl App {
                     // Delete entire day
                     self.handle_delete_day_confirmation();
                 } else if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    // Delete individual item in focused list
+                    // Delete individual item in focused list (only if item is focused)
                     match self.state.focused_section {
                         FocusedSection::FoodItems => {
-                            if let Some(selected_index) = self.food_list_state.selected() {
-                                self.state.current_screen = AppScreen::ConfirmDeleteFood(selected_index);
+                            if self.state.food_list_focused {
+                                if let Some(selected_index) = self.food_list_state.selected() {
+                                    self.state.current_screen = AppScreen::ConfirmDeleteFood(selected_index);
+                                }
                             }
                         }
                         FocusedSection::Sokay => {
-                            if let Some(selected_index) = self.sokay_list_state.selected() {
-                                self.state.current_screen = AppScreen::ConfirmDeleteSokay(selected_index);
+                            if self.state.sokay_list_focused {
+                                if let Some(selected_index) = self.sokay_list_state.selected() {
+                                    self.state.current_screen = AppScreen::ConfirmDeleteSokay(selected_index);
+                                }
                             }
                         }
                         _ => {} // Other sections don't have individual items to delete
@@ -899,46 +903,84 @@ impl App {
     }
 
     /// Moves the selection down in the daily view food list
+    /// If list is unfocused, focuses the first item
     fn move_food_selection_down(&mut self) {
         if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-            let new_selection = NavigationHandler::move_selection_down(
-                self.food_list_state.selected(),
-                log.food_entries.len(),
-            );
-            self.food_list_state.select(new_selection);
+            if !self.state.food_list_focused && !log.food_entries.is_empty() {
+                // List is unfocused - focus the first item
+                self.state.food_list_focused = true;
+                self.food_list_state.select(Some(0));
+            } else {
+                // List is focused - move down normally
+                let new_selection = NavigationHandler::move_selection_down(
+                    self.food_list_state.selected(),
+                    log.food_entries.len(),
+                );
+                self.food_list_state.select(new_selection);
+            }
         }
     }
 
     /// Moves the selection up in the daily view food list
+    /// If list is unfocused, focuses the last item
     fn move_food_selection_up(&mut self) {
         if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-            let new_selection = NavigationHandler::move_selection_up(
-                self.food_list_state.selected(),
-                log.food_entries.len(),
-            );
-            self.food_list_state.select(new_selection);
+            let list_len = log.food_entries.len();
+            let is_focused = self.state.food_list_focused;
+
+            if !is_focused && list_len > 0 {
+                // List is unfocused - focus the last item
+                self.state.food_list_focused = true;
+                self.food_list_state.select(Some(list_len - 1));
+            } else {
+                // List is focused - move up normally
+                let new_selection = NavigationHandler::move_selection_up(
+                    self.food_list_state.selected(),
+                    list_len,
+                );
+                self.food_list_state.select(new_selection);
+            }
         }
     }
 
     /// Moves the selection down in the sokay view list
+    /// If list is unfocused, focuses the first item
     fn move_sokay_selection_down(&mut self) {
         if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-            let new_selection = NavigationHandler::move_selection_down(
-                self.sokay_list_state.selected(),
-                log.sokay_entries.len(),
-            );
-            self.sokay_list_state.select(new_selection);
+            if !self.state.sokay_list_focused && !log.sokay_entries.is_empty() {
+                // List is unfocused - focus the first item
+                self.state.sokay_list_focused = true;
+                self.sokay_list_state.select(Some(0));
+            } else {
+                // List is focused - move down normally
+                let new_selection = NavigationHandler::move_selection_down(
+                    self.sokay_list_state.selected(),
+                    log.sokay_entries.len(),
+                );
+                self.sokay_list_state.select(new_selection);
+            }
         }
     }
 
     /// Moves the selection up in the sokay view list
+    /// If list is unfocused, focuses the last item
     fn move_sokay_selection_up(&mut self) {
         if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-            let new_selection = NavigationHandler::move_selection_up(
-                self.sokay_list_state.selected(),
-                log.sokay_entries.len(),
-            );
-            self.sokay_list_state.select(new_selection);
+            let list_len = log.sokay_entries.len();
+            let is_focused = self.state.sokay_list_focused;
+
+            if !is_focused && list_len > 0 {
+                // List is unfocused - focus the last item
+                self.state.sokay_list_focused = true;
+                self.sokay_list_state.select(Some(list_len - 1));
+            } else {
+                // List is focused - move up normally
+                let new_selection = NavigationHandler::move_selection_up(
+                    self.sokay_list_state.selected(),
+                    list_len,
+                );
+                self.sokay_list_state.select(new_selection);
+            }
         }
     }
 
@@ -956,9 +998,9 @@ impl App {
         }
     }
 
-    /// Generally used to go back to the previous screen:
+    /// Generally used to go back to the previous screen or unfocus lists:
     /// - Home: Unfocus the list
-    /// - Daily View: Return to Home
+    /// - Daily View: Unfocus list item if focused, otherwise return to Home
     /// - Input screens: Handle separately in their input methods
     fn handle_escape(&mut self) {
         match self.state.current_screen {
@@ -967,7 +1009,33 @@ impl App {
                 self.list_state.select(None);
             }
             AppScreen::DailyView => {
-                self.state.current_screen = AppScreen::Home;
+                // Check if we're in a list section with a focused item
+                match self.state.focused_section {
+                    FocusedSection::FoodItems => {
+                        if self.state.food_list_focused {
+                            // Unfocus the food list item
+                            self.state.food_list_focused = false;
+                            self.food_list_state.select(None);
+                        } else {
+                            // No item focused - return to home
+                            self.state.current_screen = AppScreen::Home;
+                        }
+                    }
+                    FocusedSection::Sokay => {
+                        if self.state.sokay_list_focused {
+                            // Unfocus the sokay list item
+                            self.state.sokay_list_focused = false;
+                            self.sokay_list_state.select(None);
+                        } else {
+                            // No item focused - return to home
+                            self.state.current_screen = AppScreen::Home;
+                        }
+                    }
+                    _ => {
+                        // Not in a list section - return to home
+                        self.state.current_screen = AppScreen::Home;
+                    }
+                }
             }
             _ => {
                 // Other screens handle Escape in their input methods
@@ -976,10 +1044,16 @@ impl App {
     }
 
     /// This method:
-    /// 1. Gets the currently selected food index
-    /// 2. Pre-fills the input buffer with the current food name
-    /// 3. Switches to the EditFood screen
+    /// 1. Checks if an item is focused
+    /// 2. Gets the currently selected food index
+    /// 3. Pre-fills the input buffer with the current food name
+    /// 4. Switches to the EditFood screen
     fn handle_edit_food(&mut self) {
+        // Only allow editing if an item is focused
+        if !self.state.food_list_focused {
+            return;
+        }
+
         if let Some(selected_index) = self.food_list_state.selected() {
             if let Some(current_name) = ActionHandler::start_edit_food(&self.state, selected_index)
             {
@@ -1033,6 +1107,11 @@ impl App {
 
     /// Initiates editing of a sokay entry.
     fn handle_edit_sokay(&mut self) {
+        // Only allow editing if an item is focused
+        if !self.state.sokay_list_focused {
+            return;
+        }
+
         if let Some(selected_index) = self.sokay_list_state.selected() {
             if let Some(current_text) = ActionHandler::start_edit_sokay(&self.state, selected_index)
             {

@@ -66,9 +66,21 @@ The daily view shows all sections for tracking your training day: **Measurements
 - The focused field is indicated with a **► symbol**
 
 #### List Navigation (Food Items & Sokay sections only)
-- `↑/↓` or `j/k` - Navigate within the list
-- `e` - Edit selected item in focused list
-- `D` - Delete selected item in focused list (with confirmation)
+
+Lists start **unfocused** (no item highlighted) for quick access to adding new entries.
+
+**When list is unfocused:**
+- `j/↓` - Focus first item in the list
+- `k/↑` - Focus last item in the list
+- `Enter` - Add new entry (same as when focused)
+- `e` and `D` - Do nothing (no item to edit/delete)
+- `Esc` - Return to home screen
+
+**When list is focused (item highlighted):**
+- `↑/↓` or `j/k` - Navigate between items
+- `e` - Edit selected item
+- `D` - Delete selected item (with confirmation)
+- `Esc` - Unfocus the item (remove highlight), next Esc returns to home
 
 #### Editing Data
 - `Enter` - Edit the focused section/field or add new entry (for Food/Sokay)
@@ -199,7 +211,19 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Individual Item Deletion with Confirmation)
+### Latest Session (List Item Unfocus Functionality)
+- ✅ **Unfocus list items** - Press Esc to remove item highlight while staying in Food/Sokay section
+- ✅ **Two-stage Esc behavior** - First Esc unfocuses item, second Esc returns to home screen
+- ✅ **Smart navigation from unfocused state** - j/↓ focuses first item, k/↑ focuses last item
+- ✅ **Initial unfocused state** - Lists start without highlighted items for quick access to adding entries
+- ✅ **Safe edit/delete** - e and D keys only work when an item is highlighted
+- ✅ **Conditional highlighting** - Item highlights only appear when both section AND item are focused
+- ✅ **Consistent UX** - Mirrors home screen unfocus behavior in daily view lists
+- ✅ **State tracking** - Added `food_list_focused` and `sokay_list_focused` flags to AppState
+- ✅ **Updated rendering** - List highlight styles now check both section focus and item focus
+- ✅ **Zero compilation warnings** - Clean build with proper borrow checker handling
+
+### Previous Session (Individual Item Deletion with Confirmation)
 - ✅ **Delete individual items** - Press 'D' (uppercase) to delete highlighted food or sokay items
 - ✅ **Confirmation dialogs** - Small centered modal (60% x 20%) overlays daily view before deletion
 - ✅ **y/n prompts** - Simple confirmation: 'y' to delete, 'n' or Esc to cancel
