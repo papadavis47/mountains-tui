@@ -178,6 +178,10 @@ pub enum AppScreen {
     EditNotes,
     /// Confirming deletion of an entire day's log
     ConfirmDeleteDay,
+    /// Confirming deletion of a food item (parameter is the index of the item)
+    ConfirmDeleteFood(usize),
+    /// Confirming deletion of a sokay item (parameter is the index of the item)
+    ConfirmDeleteSokay(usize),
 }
 
 /// Manages the overall application state

@@ -68,7 +68,7 @@ The daily view shows all sections for tracking your training day: **Measurements
 #### List Navigation (Food Items & Sokay sections only)
 - `↑/↓` or `j/k` - Navigate within the list
 - `e` - Edit selected item in focused list
-- `d` - Delete selected item in focused list
+- `D` - Delete selected item in focused list (with confirmation)
 
 #### Editing Data
 - `Enter` - Edit the focused section/field or add new entry (for Food/Sokay)
@@ -199,7 +199,17 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Optimistic UI Updates - Instant Feedback)
+### Latest Session (Individual Item Deletion with Confirmation)
+- ✅ **Delete individual items** - Press 'D' (uppercase) to delete highlighted food or sokay items
+- ✅ **Confirmation dialogs** - Small centered modal (60% x 20%) overlays daily view before deletion
+- ✅ **y/n prompts** - Simple confirmation: 'y' to delete, 'n' or Esc to cancel
+- ✅ **Instant feedback** - Optimistic updates with background persistence
+- ✅ **Context-aware** - Same 'D' key works on Home screen (delete day) and DailyView (delete item)
+- ✅ **Safe deletion** - Requires explicit confirmation to prevent accidental data loss
+- ✅ **Centered modals** - Confirmation overlays keep daily view visible in background
+- ✅ **Item preview** - Shows the exact item being deleted in the confirmation dialog
+
+### Previous Session (Optimistic UI Updates - Instant Feedback)
 - ✅ **Instant visual feedback** - All input operations (food, sokay, measurements, notes) now respond immediately without waiting for disk I/O
 - ✅ **Optimistic update pattern** - State updates happen instantly, persistence happens in background
 - ✅ **Sub-second responsiveness** - Press Enter and see changes immediately (previously had 1-second delay)

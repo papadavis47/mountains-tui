@@ -170,6 +170,12 @@ impl App {
             AppScreen::ConfirmDeleteDay => {
                 self.handle_confirm_delete_day_input(key).await?
             }
+            AppScreen::ConfirmDeleteFood(food_index) => {
+                self.handle_confirm_delete_food_input(key, food_index).await?
+            }
+            AppScreen::ConfirmDeleteSokay(sokay_index) => {
+                self.handle_confirm_delete_sokay_input(key, sokay_index).await?
+            }
             _ => self.handle_navigation_input(key, modifiers).await?,
         }
         Ok(())
@@ -589,9 +595,25 @@ impl App {
                 self.handle_escape();
             }
             KeyCode::Char('D') => {
-                // Delete entire day (only available on Home screen with a day selected)
+                // Delete confirmation - works on both Home (delete day) and DailyView (delete item)
                 if matches!(self.state.current_screen, AppScreen::Home) {
+                    // Delete entire day
                     self.handle_delete_day_confirmation();
+                } else if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    // Delete individual item in focused list
+                    match self.state.focused_section {
+                        FocusedSection::FoodItems => {
+                            if let Some(selected_index) = self.food_list_state.selected() {
+                                self.state.current_screen = AppScreen::ConfirmDeleteFood(selected_index);
+                            }
+                        }
+                        FocusedSection::Sokay => {
+                            if let Some(selected_index) = self.sokay_list_state.selected() {
+                                self.state.current_screen = AppScreen::ConfirmDeleteSokay(selected_index);
+                            }
+                        }
+                        _ => {} // Other sections don't have individual items to delete
+                    }
                 }
             }
             KeyCode::Char('f') => {
@@ -607,16 +629,6 @@ impl App {
                         FocusedSection::FoodItems => self.handle_edit_food(),
                         FocusedSection::Sokay => self.handle_edit_sokay(),
                         _ => {} // Other sections use Enter key for editing
-                    }
-                }
-            }
-            KeyCode::Char('d') => {
-                // Delete item in focused list (only available in daily view)
-                if matches!(self.state.current_screen, AppScreen::DailyView) {
-                    match self.state.focused_section {
-                        FocusedSection::FoodItems => self.handle_delete_food().await?,
-                        FocusedSection::Sokay => self.handle_delete_sokay().await?,
-                        _ => {} // Other sections don't have individual items to delete
                     }
                 }
             }
@@ -828,6 +840,26 @@ impl App {
             AppScreen::ConfirmDeleteDay => {
                 screens::render_confirm_delete_day_screen(f, self.state.selected_date);
             }
+            AppScreen::ConfirmDeleteFood(food_index) => {
+                screens::render_confirm_delete_food_screen(
+                    f,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
+                    food_index,
+                );
+            }
+            AppScreen::ConfirmDeleteSokay(sokay_index) => {
+                screens::render_confirm_delete_sokay_screen(
+                    f,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
+                    sokay_index,
+                );
+            }
         }
     }
 
@@ -957,51 +989,6 @@ impl App {
         }
     }
 
-    /// This method also handles updating the selection state after deletion.
-    async fn handle_delete_food(&mut self) -> Result<()> {
-        if let Some(selected_index) = self.food_list_state.selected() {
-            // Optimistic update - delete immediately
-            if let Some(log) = ActionHandler::delete_food_entry(
-                &mut self.state,
-                selected_index,
-            ) {
-                // Update selection after deletion
-                if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
-                    if current_log.food_entries.is_empty() {
-                        // No items left - clear selection
-                        self.food_list_state.select(None);
-                    } else if selected_index >= current_log.food_entries.len() {
-                        // Selected index is now out of bounds - select the last item
-                        self.food_list_state
-                            .select(Some(current_log.food_entries.len() - 1));
-                    }
-                    // If the selected index is still valid, keep the current selection
-                }
-
-                // Persist in background
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            } else {
-                // Invalid operation - update selection state anyway
-                if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-                    if log.food_entries.is_empty() {
-                        // No items left - clear selection
-                        self.food_list_state.select(None);
-                    } else if selected_index >= log.food_entries.len() {
-                        // Selected index is now out of bounds - select the last item
-                        self.food_list_state
-                            .select(Some(log.food_entries.len() - 1));
-                    }
-                    // If the selected index is still valid, keep the current selection
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// Pre-fills the input buffer with the current weight value if it exists.
     fn handle_edit_weight(&mut self) {
         let current_weight = ActionHandler::start_edit_weight(&self.state);
@@ -1055,38 +1042,6 @@ impl App {
         }
     }
 
-    /// Deletes a sokay entry.
-    async fn handle_delete_sokay(&mut self) -> Result<()> {
-        if let Some(selected_index) = self.sokay_list_state.selected() {
-            // Optimistic update - delete immediately
-            if let Some(log) = ActionHandler::delete_sokay_entry(
-                &mut self.state,
-                selected_index,
-            ) {
-                // Update selection after deletion
-                if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
-                    if current_log.sokay_entries.is_empty() {
-                        // No items left - clear selection
-                        self.sokay_list_state.select(None);
-                    } else if selected_index >= current_log.sokay_entries.len() {
-                        // Selected index is now out of bounds - select the last item
-                        self.sokay_list_state
-                            .select(Some(current_log.sokay_entries.len() - 1));
-                    }
-                    // If the selected index is still valid, keep the current selection
-                }
-
-                // Persist in background
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-        }
-        Ok(())
-    }
-
     /// Initiates the delete day confirmation flow.
     /// Only proceeds if a day is selected in the Home screen list.
     fn handle_delete_day_confirmation(&mut self) {
@@ -1128,6 +1083,94 @@ impl App {
             KeyCode::Char('n') | KeyCode::Esc => {
                 // Cancelled - return to home screen without deleting
                 self.state.current_screen = AppScreen::Home;
+            }
+            _ => {
+                // Ignore other keys
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles confirmation input for deleting a food item
+    async fn handle_confirm_delete_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
+        match key {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                // Confirmed - delete the food item with optimistic update
+                if let Some(log) = ActionHandler::delete_food_entry(
+                    &mut self.state,
+                    food_index,
+                ) {
+                    // Update selection after deletion
+                    if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                        if current_log.food_entries.is_empty() {
+                            self.food_list_state.select(None);
+                        } else if food_index >= current_log.food_entries.len() {
+                            self.food_list_state
+                                .select(Some(current_log.food_entries.len() - 1));
+                        }
+                    }
+
+                    // Return to daily view
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Invalid operation - just go back
+                    self.state.current_screen = AppScreen::DailyView;
+                }
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                // Cancelled - return to daily view without deleting
+                self.state.current_screen = AppScreen::DailyView;
+            }
+            _ => {
+                // Ignore other keys
+            }
+        }
+        Ok(())
+    }
+
+    /// Handles confirmation input for deleting a sokay item
+    async fn handle_confirm_delete_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
+        match key {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                // Confirmed - delete the sokay item with optimistic update
+                if let Some(log) = ActionHandler::delete_sokay_entry(
+                    &mut self.state,
+                    sokay_index,
+                ) {
+                    // Update selection after deletion
+                    if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                        if current_log.sokay_entries.is_empty() {
+                            self.sokay_list_state.select(None);
+                        } else if sokay_index >= current_log.sokay_entries.len() {
+                            self.sokay_list_state
+                                .select(Some(current_log.sokay_entries.len() - 1));
+                        }
+                    }
+
+                    // Return to daily view
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Invalid operation - just go back
+                    self.state.current_screen = AppScreen::DailyView;
+                }
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                // Cancelled - return to daily view without deleting
+                self.state.current_screen = AppScreen::DailyView;
             }
             _ => {
                 // Ignore other keys

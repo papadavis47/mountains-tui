@@ -152,7 +152,7 @@ pub fn render_daily_view_screen(
     render_help(
         f,
         chunks[7],
-        " Shift+J/K: section | Tab: field | Enter: edit | j/k: list | f: food | c: sokay | t: training | n: notes | Esc: back ",
+        " Shift+J/K: section | Tab: field | Enter: add | j/k: list | e: edit item | D: delete item | f: food | c: sokay | t: training | n: notes | Esc: back ",
     );
 }
 
@@ -1411,4 +1411,112 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
     f.render_widget(warning_widget, chunks[1]);
 
     render_help(f, chunks[2], "Y: delete day | n/Esc: cancel");
+}
+
+/// Renders the delete food item confirmation dialog as a centered modal
+///
+/// Shows a small confirmation dialog asking the user to confirm deletion.
+pub fn render_confirm_delete_food_screen(
+    f: &mut Frame,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
+    food_index: usize,
+) {
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+
+    // Get the food item name
+    let food_name = if let Some(log) = state.get_daily_log(state.selected_date) {
+        if food_index < log.food_entries.len() {
+            log.food_entries[food_index].name.clone()
+        } else {
+            "Unknown".to_string()
+        }
+    } else {
+        "Unknown".to_string()
+    };
+
+    // Create centered popup area (60% width, 20% height)
+    let popup_area = centered_rect(f.area(), 60, 20);
+
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
+
+    // Create the confirmation message
+    let message = format!(
+        "Delete this food item?\n\n\
+        \"{}\"\n\n\
+        Press 'y' to confirm or 'n' to cancel.",
+        food_name
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Red))
+        .title("Confirm Deletion")
+        .padding(ratatui::widgets::Padding::uniform(1));
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let text = Paragraph::new(message)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(text, inner_area);
+}
+
+/// Renders the delete sokay item confirmation dialog as a centered modal
+///
+/// Shows a small confirmation dialog asking the user to confirm deletion.
+pub fn render_confirm_delete_sokay_screen(
+    f: &mut Frame,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
+    sokay_index: usize,
+) {
+    // First render the daily view in the background
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+
+    // Get the sokay item text
+    let sokay_text = if let Some(log) = state.get_daily_log(state.selected_date) {
+        if sokay_index < log.sokay_entries.len() {
+            log.sokay_entries[sokay_index].clone()
+        } else {
+            "Unknown".to_string()
+        }
+    } else {
+        "Unknown".to_string()
+    };
+
+    // Create centered popup area (60% width, 20% height)
+    let popup_area = centered_rect(f.area(), 60, 20);
+
+    // Clear the popup area to prevent visual artifacts
+    f.render_widget(Clear, popup_area);
+
+    // Create the confirmation message
+    let message = format!(
+        "Delete this sokay item?\n\n\
+        \"{}\"\n\n\
+        Press 'y' to confirm or 'n' to cancel.",
+        sokay_text
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Red))
+        .title("Confirm Deletion")
+        .padding(ratatui::widgets::Padding::uniform(1));
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let text = Paragraph::new(message)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(text, inner_area);
 }
