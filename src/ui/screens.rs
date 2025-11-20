@@ -65,8 +65,8 @@ pub fn render_home_screen(
             Block::default()
                 .borders(Borders::ALL)
                 .title("Daily Training Logs")
-                // Horizontal padding moves text away from the borders
-                .padding(ratatui::widgets::Padding::horizontal(1)),
+                // Uniform padding provides space on all sides
+                .padding(ratatui::widgets::Padding::uniform(1)),
         )
         .highlight_style(create_highlight_style());
 
@@ -381,7 +381,7 @@ fn render_food_list_section(
                 .borders(Borders::ALL)
                 .border_style(border_style)
                 .title("Food Items")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
+                .padding(ratatui::widgets::Padding::uniform(1)),
         )
         .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, food_list_state);
@@ -456,7 +456,7 @@ fn render_sokay_section(
                 .borders(Borders::ALL)
                 .border_style(border_style)
                 .title(title)
-                .padding(ratatui::widgets::Padding::horizontal(1)),
+                .padding(ratatui::widgets::Padding::uniform(1)),
         )
         .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, sokay_list_state);

@@ -19,6 +19,7 @@ use std::path::PathBuf;
 /// - Saving individual daily logs when they change
 ///
 /// PathBuf is Rust's cross-platform path type that works on Windows, macOS, and Linux.
+#[derive(Clone)]
 pub struct FileManager {
     /// Path to the directory where all daily log files are stored
     mountains_dir: PathBuf,

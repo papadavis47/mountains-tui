@@ -182,19 +182,26 @@ impl App {
     async fn handle_add_food_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                // Save the food entry and return to daily view
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::save_food_entry(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
+                // Optimistic update: update state and switch screen immediately
+                if let Some(log) = ActionHandler::save_food_entry(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                ) {
+                    // Switch to DailyView immediately for instant feedback
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background (non-blocking)
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Empty input - just go back without persisting
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
                 }
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 // Cancel input and return to daily view
@@ -213,20 +220,27 @@ impl App {
     async fn handle_edit_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                // Update the existing food entry
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_food_entry(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        food_index,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
+                // Optimistic update: update state and switch screen immediately
+                if let Some(log) = ActionHandler::update_food_entry(
+                    &mut self.state,
+                    food_index,
+                    self.input_handler.input_buffer.clone(),
+                ) {
+                    // Switch to DailyView immediately for instant feedback
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background (non-blocking)
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Invalid input - just go back
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
                 }
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 // Cancel editing
@@ -244,19 +258,22 @@ impl App {
     async fn handle_edit_weight_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                // Save the weight measurement
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_weight(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update: update state and switch screen immediately
+                let log = ActionHandler::update_weight(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
+
+                // Switch to DailyView immediately for instant feedback
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background (non-blocking)
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -273,18 +290,20 @@ impl App {
     async fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_waist(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update
+                let log = ActionHandler::update_waist(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -305,19 +324,20 @@ impl App {
     ) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                // Save the strength & mobility and return to daily view
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_strength_mobility(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update
+                let log = ActionHandler::update_strength_mobility(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -339,18 +359,20 @@ impl App {
     ) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_notes(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update
+                let log = ActionHandler::update_notes(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -367,18 +389,20 @@ impl App {
     async fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_miles(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update
+                let log = ActionHandler::update_miles(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -395,18 +419,20 @@ impl App {
     async fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_elevation(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
-                }
+                // Optimistic update
+                let log = ActionHandler::update_elevation(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                );
                 self.input_handler.clear();
                 self.state.current_screen = AppScreen::DailyView;
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -423,18 +449,25 @@ impl App {
     async fn handle_add_sokay_input(&mut self, key: KeyCode) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::save_sokay_entry(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
+                // Optimistic update
+                if let Some(log) = ActionHandler::save_sokay_entry(
+                    &mut self.state,
+                    self.input_handler.input_buffer.clone(),
+                ) {
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Empty input - just go back
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
                 }
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -451,19 +484,26 @@ impl App {
     async fn handle_edit_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
         match key {
             KeyCode::Enter => {
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::update_sokay_entry(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        sokay_index,
-                        self.input_handler.input_buffer.clone(),
-                    )
-                    .await?;
+                // Optimistic update
+                if let Some(log) = ActionHandler::update_sokay_entry(
+                    &mut self.state,
+                    sokay_index,
+                    self.input_handler.input_buffer.clone(),
+                ) {
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    // Persist in background
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                } else {
+                    // Invalid input - just go back
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
                 }
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -920,28 +960,43 @@ impl App {
     /// This method also handles updating the selection state after deletion.
     async fn handle_delete_food(&mut self) -> Result<()> {
         if let Some(selected_index) = self.food_list_state.selected() {
-            {
-                let mut db = self.db_manager.write().await;
-                ActionHandler::delete_food_entry(
-                    &mut self.state,
-                    &mut *db,
-                    &self.file_manager,
-                    selected_index,
-                )
-                .await?;
-            }
-
-            // Update selection after deletion
-            if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-                if log.food_entries.is_empty() {
-                    // No items left - clear selection
-                    self.food_list_state.select(None);
-                } else if selected_index >= log.food_entries.len() {
-                    // Selected index is now out of bounds - select the last item
-                    self.food_list_state
-                        .select(Some(log.food_entries.len() - 1));
+            // Optimistic update - delete immediately
+            if let Some(log) = ActionHandler::delete_food_entry(
+                &mut self.state,
+                selected_index,
+            ) {
+                // Update selection after deletion
+                if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                    if current_log.food_entries.is_empty() {
+                        // No items left - clear selection
+                        self.food_list_state.select(None);
+                    } else if selected_index >= current_log.food_entries.len() {
+                        // Selected index is now out of bounds - select the last item
+                        self.food_list_state
+                            .select(Some(current_log.food_entries.len() - 1));
+                    }
+                    // If the selected index is still valid, keep the current selection
                 }
-                // If the selected index is still valid, keep the current selection
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
+            } else {
+                // Invalid operation - update selection state anyway
+                if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
+                    if log.food_entries.is_empty() {
+                        // No items left - clear selection
+                        self.food_list_state.select(None);
+                    } else if selected_index >= log.food_entries.len() {
+                        // Selected index is now out of bounds - select the last item
+                        self.food_list_state
+                            .select(Some(log.food_entries.len() - 1));
+                    }
+                    // If the selected index is still valid, keep the current selection
+                }
             }
         }
         Ok(())
@@ -1003,28 +1058,30 @@ impl App {
     /// Deletes a sokay entry.
     async fn handle_delete_sokay(&mut self) -> Result<()> {
         if let Some(selected_index) = self.sokay_list_state.selected() {
-            {
-                let mut db = self.db_manager.write().await;
-                ActionHandler::delete_sokay_entry(
-                    &mut self.state,
-                    &mut *db,
-                    &self.file_manager,
-                    selected_index,
-                )
-                .await?;
-            }
-
-            // Update selection after deletion
-            if let Some(log) = self.state.get_daily_log(self.state.selected_date) {
-                if log.sokay_entries.is_empty() {
-                    // No items left - clear selection
-                    self.sokay_list_state.select(None);
-                } else if selected_index >= log.sokay_entries.len() {
-                    // Selected index is now out of bounds - select the last item
-                    self.sokay_list_state
-                        .select(Some(log.sokay_entries.len() - 1));
+            // Optimistic update - delete immediately
+            if let Some(log) = ActionHandler::delete_sokay_entry(
+                &mut self.state,
+                selected_index,
+            ) {
+                // Update selection after deletion
+                if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                    if current_log.sokay_entries.is_empty() {
+                        // No items left - clear selection
+                        self.sokay_list_state.select(None);
+                    } else if selected_index >= current_log.sokay_entries.len() {
+                        // Selected index is now out of bounds - select the last item
+                        self.sokay_list_state
+                            .select(Some(current_log.sokay_entries.len() - 1));
+                    }
+                    // If the selected index is still valid, keep the current selection
                 }
-                // If the selected index is still valid, keep the current selection
+
+                // Persist in background
+                let db_manager = Arc::clone(&self.db_manager);
+                let file_manager = self.file_manager.clone();
+                tokio::spawn(async move {
+                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                });
             }
         }
         Ok(())

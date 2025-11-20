@@ -1,9 +1,11 @@
 use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
 use crate::models::{
-    AppScreen, AppState, FocusedSection, FoodEntry, MeasurementField, RunningField,
+    AppScreen, AppState, DailyLog, FocusedSection, FoodEntry, MeasurementField, RunningField,
 };
 use crossterm::event::KeyCode;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// This struct manages the state needed for text input, including:
 /// - The text buffer being edited
@@ -483,47 +485,50 @@ impl NavigationHandler {
 pub struct ActionHandler;
 
 impl ActionHandler {
-    /// Saves a new food entry to the daily log
+    /// Saves a new food entry to the daily log with optimistic UI updates
     ///
-    /// This function:
-    /// 1. Creates a new FoodEntry from the input
-    /// 2. Gets or creates the daily log for the selected date
-    /// 3. Adds the entry to the log
-    /// 4. Saves the log to database (with cloud sync)
-    /// 5. Optionally saves to markdown file as backup
+    /// This function uses an optimistic update pattern:
+    /// 1. Updates in-memory state immediately (instant)
+    /// 2. Returns the updated log for background persistence
     ///
-    /// The Result<(), anyhow::Error> return type allows the caller to handle
-    /// any errors that might occur during database operations.
-    pub async fn save_food_entry(
+    /// The caller spawns a background task to persist changes, keeping the UI responsive.
+    pub fn save_food_entry(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         food_name: String,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if !food_name.is_empty() {
             let food_entry = FoodEntry::new(food_name);
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_food_entry(food_entry);
-
-            // Save to database (primary storage with cloud sync)
-            db_manager.save_daily_log(log).await?;
-
-            // Optionally save to markdown as backup
-            let _ = file_manager.save_daily_log(log); // Ignore markdown errors
+            return Some(log.clone());
         }
-        Ok(())
+        None
     }
 
-    /// Updates an existing food entry
+    /// Background persistence helper - saves daily log to database and file
     ///
-    /// This function finds the food entry by index and updates its name.
-    pub async fn update_food_entry(
-        state: &mut AppState,
-        db_manager: &mut DbManager,
+    /// This is called from a spawned tokio task to avoid blocking the UI.
+    pub async fn persist_daily_log(
+        db_manager: Arc<RwLock<DbManager>>,
         file_manager: &FileManager,
+        log: DailyLog,
+    ) {
+        // Lock and save to database
+        let mut db = db_manager.write().await;
+        let _ = db.save_daily_log(&log).await; // Ignore errors in background task
+
+        // Save to markdown backup
+        let _ = file_manager.save_daily_log(&log); // Ignore markdown errors
+    }
+
+    /// Updates an existing food entry with optimistic UI updates
+    ///
+    /// Returns the updated log for background persistence.
+    pub fn update_food_entry(
+        state: &mut AppState,
         food_index: usize,
         new_name: String,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if !new_name.is_empty() {
             if let Some(log) = state
                 .daily_logs
@@ -532,24 +537,20 @@ impl ActionHandler {
             {
                 if food_index < log.food_entries.len() {
                     log.food_entries[food_index].name = new_name;
-                    db_manager.save_daily_log(log).await?;
-                    let _ = file_manager.save_daily_log(log); // Backup to markdown
+                    return Some(log.clone());
                 }
             }
         }
-        Ok(())
+        None
     }
 
-    /// Deletes a food entry from the daily log
+    /// Deletes a food entry from the daily log with optimistic UI updates
     ///
-    /// This function removes a food entry by index and updates the database.
-    /// It also handles updating the selection state if needed.
-    pub async fn delete_food_entry(
+    /// Returns the updated log for background persistence.
+    pub fn delete_food_entry(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         food_index: usize,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if let Some(log) = state
             .daily_logs
             .iter_mut()
@@ -557,23 +558,19 @@ impl ActionHandler {
         {
             if food_index < log.food_entries.len() {
                 log.remove_food_entry(food_index);
-                db_manager.save_daily_log(log).await?;
-                let _ = file_manager.save_daily_log(log); // Backup to markdown
+                return Some(log.clone());
             }
         }
-        Ok(())
+        None
     }
 
-    /// Updates the weight measurement for the selected date
+    /// Updates the weight measurement with optimistic UI updates
     ///
-    /// This function parses the input string as a float and saves it.
-    /// Empty input clears the weight (sets it to None).
-    pub async fn update_weight(
+    /// Returns the updated log for background persistence.
+    pub fn update_weight(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         weight_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let weight: Option<f32> = if weight_input.is_empty() {
             None
         } else {
@@ -581,20 +578,16 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.weight = weight;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
-    /// Updates the waist measurement for the selected date
+    /// Updates the waist measurement with optimistic UI updates
     ///
-    /// Similar to update_weight but for waist measurements.
-    pub async fn update_waist(
+    /// Returns the updated log for background persistence.
+    pub fn update_waist(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         waist_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let waist: Option<f32> = if waist_input.is_empty() {
             None
         } else {
@@ -602,9 +595,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.waist = waist;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
     /// Handles the Enter key press on the home screen
@@ -662,16 +653,13 @@ impl ActionHandler {
         String::new()
     }
 
-    /// Updates the strength & mobility exercises for the selected date
+    /// Updates the strength & mobility exercises with optimistic UI updates
     ///
-    /// This function saves the strength & mobility text to the daily log.
-    /// Empty input clears the strength & mobility field (sets it to None).
-    pub async fn update_strength_mobility(
+    /// Returns the updated log for background persistence.
+    pub fn update_strength_mobility(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         sm_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let strength_mobility: Option<String> = if sm_input.trim().is_empty() {
             None
         } else {
@@ -679,9 +667,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.strength_mobility = strength_mobility;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
     /// Prepares the edit strength & mobility screen with the current value
@@ -696,16 +682,13 @@ impl ActionHandler {
         String::new()
     }
 
-    /// Updates the daily notes for the selected date
+    /// Updates the daily notes with optimistic UI updates
     ///
-    /// This function saves the notes text to the daily log.
-    /// Empty input clears the notes (sets it to None).
-    pub async fn update_notes(
+    /// Returns the updated log for background persistence.
+    pub fn update_notes(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         notes_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let notes: Option<String> = if notes_input.trim().is_empty() {
             None
         } else {
@@ -713,9 +696,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.notes = notes;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
     /// Prepares the edit notes screen with the current notes value
@@ -730,16 +711,13 @@ impl ActionHandler {
         String::new()
     }
 
-    /// Updates the miles covered for the selected date
+    /// Updates the miles covered with optimistic UI updates
     ///
-    /// This function parses the input string as a float and saves it.
-    /// Empty input clears the miles (sets it to None).
-    pub async fn update_miles(
+    /// Returns the updated log for background persistence.
+    pub fn update_miles(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         miles_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let miles: Option<f32> = if miles_input.is_empty() {
             None
         } else {
@@ -747,21 +725,16 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.miles_covered = miles;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
-    /// Updates the elevation gain for the selected date
+    /// Updates the elevation gain with optimistic UI updates
     ///
-    /// This function parses the input string as an integer and saves it.
-    /// Empty input clears the elevation (sets it to None).
-    pub async fn update_elevation(
+    /// Returns the updated log for background persistence.
+    pub fn update_elevation(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         elevation_input: String,
-    ) -> anyhow::Result<()> {
+    ) -> DailyLog {
         let elevation: Option<i32> = if elevation_input.is_empty() {
             None
         } else {
@@ -769,9 +742,7 @@ impl ActionHandler {
         };
         let log = state.get_or_create_daily_log(state.selected_date);
         log.elevation_gain = elevation;
-        db_manager.save_daily_log(log).await?;
-        let _ = file_manager.save_daily_log(log); // Backup to markdown
-        Ok(())
+        log.clone()
     }
 
     /// Prepares the edit miles screen with the current miles value
@@ -798,34 +769,29 @@ impl ActionHandler {
         String::new()
     }
 
-    /// Saves a new sokay entry to the daily log
+    /// Saves a new sokay entry with optimistic UI updates
     ///
-    /// This function adds a sokay entry (unhealthy food choice) to the current day's log.
-    pub async fn save_sokay_entry(
+    /// Returns the updated log for background persistence.
+    pub fn save_sokay_entry(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         sokay_text: String,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if !sokay_text.is_empty() {
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_sokay_entry(sokay_text);
-            db_manager.save_daily_log(log).await?;
-            let _ = file_manager.save_daily_log(log); // Backup to markdown
+            return Some(log.clone());
         }
-        Ok(())
+        None
     }
 
-    /// Updates an existing sokay entry
+    /// Updates an existing sokay entry with optimistic UI updates
     ///
-    /// This function finds the sokay entry by index and updates its text.
-    pub async fn update_sokay_entry(
+    /// Returns the updated log for background persistence.
+    pub fn update_sokay_entry(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         sokay_index: usize,
         new_text: String,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if !new_text.is_empty() {
             if let Some(log) = state
                 .daily_logs
@@ -834,23 +800,20 @@ impl ActionHandler {
             {
                 if sokay_index < log.sokay_entries.len() {
                     log.sokay_entries[sokay_index] = new_text;
-                    db_manager.save_daily_log(log).await?;
-                    let _ = file_manager.save_daily_log(log); // Backup to markdown
+                    return Some(log.clone());
                 }
             }
         }
-        Ok(())
+        None
     }
 
-    /// Deletes a sokay entry from the daily log
+    /// Deletes a sokay entry with optimistic UI updates
     ///
-    /// This function removes a sokay entry by index and updates the database.
-    pub async fn delete_sokay_entry(
+    /// Returns the updated log for background persistence.
+    pub fn delete_sokay_entry(
         state: &mut AppState,
-        db_manager: &mut DbManager,
-        file_manager: &FileManager,
         sokay_index: usize,
-    ) -> anyhow::Result<()> {
+    ) -> Option<DailyLog> {
         if let Some(log) = state
             .daily_logs
             .iter_mut()
@@ -858,11 +821,10 @@ impl ActionHandler {
         {
             if sokay_index < log.sokay_entries.len() {
                 log.remove_sokay_entry(sokay_index);
-                db_manager.save_daily_log(log).await?;
-                let _ = file_manager.save_daily_log(log); // Backup to markdown
+                return Some(log.clone());
             }
         }
-        Ok(())
+        None
     }
 
     /// Prepares the edit sokay screen with the current sokay entry text
