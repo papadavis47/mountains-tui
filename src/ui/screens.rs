@@ -1383,7 +1383,7 @@ pub fn render_edit_sokay_screen(
 /// Renders the delete day confirmation screen
 ///
 /// This screen asks the user to confirm deletion of an entire day's log.
-/// Shows a warning message and waits for Y/n input.
+/// Shows a warning message and waits for Y/N input.
 pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate) {
     let chunks = create_standard_layout(f.area());
 
@@ -1400,7 +1400,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         - Strength & mobility exercises\n\
         - Daily notes\n\n\
         This action cannot be undone.\n\n\
-        Type 'Y' to confirm deletion or 'n' to cancel.",
+        Type 'Y' to confirm deletion or 'N' to cancel.",
         selected_date.format("%B %d, %Y")
     );
 
@@ -1410,12 +1410,13 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Red))
-                .title("Warning: Permanent Deletion"),
+                .title("Warning: Permanent Deletion")
+                .padding(ratatui::widgets::Padding::new(0, 0, 1, 0)),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(warning_widget, chunks[1]);
 
-    render_help(f, chunks[2], "Y: delete day | n/Esc: cancel");
+    render_help(f, chunks[2], "Y: delete day | N/Esc: cancel");
 }
 
 /// Renders the delete food item confirmation dialog as a centered modal
@@ -1453,7 +1454,7 @@ pub fn render_confirm_delete_food_screen(
     let message = format!(
         "Delete this food item?\n\n\
         \"{}\"\n\n\
-        Press 'y' to confirm or 'n' to cancel.",
+        Press 'Y' to confirm or 'N' to cancel.",
         food_name
     );
 
@@ -1507,7 +1508,7 @@ pub fn render_confirm_delete_sokay_screen(
     let message = format!(
         "Delete this sokay item?\n\n\
         \"{}\"\n\n\
-        Press 'y' to confirm or 'n' to cancel.",
+        Press 'Y' to confirm or 'N' to cancel.",
         sokay_text
     );
 

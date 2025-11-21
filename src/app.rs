@@ -1176,7 +1176,7 @@ impl App {
                 // Clear selection since the list has changed
                 self.list_state.select(None);
             }
-            KeyCode::Char('n') | KeyCode::Esc => {
+            KeyCode::Char('N') | KeyCode::Esc => {
                 // Cancelled - return to home screen without deleting
                 self.state.current_screen = AppScreen::Home;
             }
@@ -1190,7 +1190,7 @@ impl App {
     /// Handles confirmation input for deleting a food item
     async fn handle_confirm_delete_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
         match key {
-            KeyCode::Char('y') | KeyCode::Char('Y') => {
+            KeyCode::Char('Y') => {
                 // Confirmed - delete the food item with optimistic update
                 if let Some(log) = ActionHandler::delete_food_entry(
                     &mut self.state,
@@ -1220,7 +1220,7 @@ impl App {
                     self.state.current_screen = AppScreen::DailyView;
                 }
             }
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+            KeyCode::Char('N') | KeyCode::Esc => {
                 // Cancelled - return to daily view without deleting
                 self.state.current_screen = AppScreen::DailyView;
             }
@@ -1234,7 +1234,7 @@ impl App {
     /// Handles confirmation input for deleting a sokay item
     async fn handle_confirm_delete_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
         match key {
-            KeyCode::Char('y') | KeyCode::Char('Y') => {
+            KeyCode::Char('Y') => {
                 // Confirmed - delete the sokay item with optimistic update
                 if let Some(log) = ActionHandler::delete_sokay_entry(
                     &mut self.state,
@@ -1264,7 +1264,7 @@ impl App {
                     self.state.current_screen = AppScreen::DailyView;
                 }
             }
-            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+            KeyCode::Char('N') | KeyCode::Esc => {
                 // Cancelled - return to daily view without deleting
                 self.state.current_screen = AppScreen::DailyView;
             }
