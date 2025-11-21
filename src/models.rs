@@ -182,6 +182,8 @@ pub enum AppScreen {
     ConfirmDeleteFood(usize),
     /// Confirming deletion of a sokay item (parameter is the index of the item)
     ConfirmDeleteSokay(usize),
+    /// Showing the shortcuts help overlay
+    ShortcutsHelp,
 }
 
 /// Manages the overall application state

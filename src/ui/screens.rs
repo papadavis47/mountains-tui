@@ -153,7 +153,7 @@ pub fn render_daily_view_screen(
     render_help(
         f,
         chunks[7],
-        " Shift+J/K: section | Tab: field | Enter: add | j/k: list | e: edit item | D: delete item | f: food | c: sokay | t: training | n: notes | Esc: back ",
+        " Shift+J/K: section | Tab: field | Enter: add | j/k: list | E: edit item | D: delete item | Space: shortcuts | Esc: back ",
     );
 }
 
@@ -1521,6 +1521,53 @@ pub fn render_confirm_delete_sokay_screen(
     f.render_widget(block, popup_area);
 
     let text = Paragraph::new(message)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+    f.render_widget(text, inner_area);
+}
+
+pub fn render_shortcuts_help_screen(
+    f: &mut Frame,
+    state: &AppState,
+    food_list_state: &mut ListState,
+    sokay_list_state: &mut ListState,
+    sync_status: &str,
+) {
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+
+    let popup_area = centered_rect(f.area(), 70, 50);
+
+    f.render_widget(Clear, popup_area);
+
+    let shortcuts_text = "\
+Measurements:
+  w - Edit weight
+  s - Edit waist size
+
+Activity:
+  m - Edit miles covered
+  l - Edit elevation gain
+
+Nutrition:
+  f - Add food item
+  c - Add sokay entry
+
+Training:
+  t - Edit strength & mobility
+  n - Edit daily notes
+
+Press Space to close";
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Green))
+        .title("Shortcuts")
+        .padding(ratatui::widgets::Padding::uniform(1));
+
+    let inner_area = block.inner(popup_area);
+    f.render_widget(block, popup_area);
+
+    let text = Paragraph::new(shortcuts_text)
         .style(Style::default().fg(Color::White))
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(text, inner_area);

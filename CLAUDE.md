@@ -73,12 +73,12 @@ Lists start **unfocused** (no item highlighted) for quick access to adding new e
 - `j/↓` - Focus first item in the list
 - `k/↑` - Focus last item in the list
 - `Enter` - Add new entry (same as when focused)
-- `e` and `D` - Do nothing (no item to edit/delete)
+- `E` and `D` - Do nothing (no item to edit/delete)
 - `Esc` - Return to home screen
 
 **When list is focused (item highlighted):**
 - `↑/↓` or `j/k` - Navigate between items
-- `e` - Edit selected item
+- `E` - Edit selected item
 - `D` - Delete selected item (with confirmation)
 - `Esc` - Unfocus the item (remove highlight), next Esc returns to home
 
@@ -89,15 +89,22 @@ Lists start **unfocused** (no item highlighted) for quick access to adding new e
   - **Sokay:** Opens "Add Sokay" dialog
   - **Strength & Mobility/Notes:** Opens editor for that section
 
-#### Quick Access Shortcuts (still available)
-- `f` - Add new food item (shortcut)
-- `c` - Add new sokay entry (shortcut)
-- `w` - Edit weight measurement (shortcut)
-- `s` - Edit waist measurement (shortcut)
-- `m` - Edit miles covered (shortcut)
-- `l` - Edit elevation gain (shortcut)
-- `t` - Edit strength & mobility exercises (shortcut)
-- `n` - Edit daily notes (shortcut)
+#### Shortcuts Overlay
+- `Space` - Toggle shortcuts help overlay (shows all quick access shortcuts)
+  - Press Space again to close the overlay
+  - Displays data entry shortcuts grouped by category (Measurements, Activity, Nutrition, Training)
+  - Only works when not typing in an input field
+
+#### Quick Access Shortcuts
+These shortcuts allow quick data entry without navigating sections. Press **Space** to see the full list in an overlay.
+- `w` - Edit weight measurement
+- `s` - Edit waist measurement
+- `m` - Edit miles covered
+- `l` - Edit elevation gain
+- `f` - Add new food item
+- `c` - Add new sokay entry
+- `t` - Edit strength & mobility exercises
+- `n` - Edit daily notes
 - `Esc` - Back to home screen
 
 ### Add/Edit Food Screens
@@ -158,7 +165,7 @@ src/
 Data storage:
 - Database: ~/.mountains/mountains.db (local libsql database)
 - Backups: ~/.mountains/mtslog-MM.DD.YYYY.md (markdown files)
-- Cloud: Synced to Turso Cloud every 60 seconds
+- Cloud: Synced to Turso Cloud every 4 minutes
 ```
 
 ### Example Data File Format:
@@ -442,7 +449,7 @@ Feeling strong today. Good hike in the morning.
 ### Previous Sessions
 - ✅ Turso Cloud integration with local libsql database
 - ✅ Dual persistence (cloud database + markdown backups)
-- ✅ Automatic background sync every 60 seconds
+- ✅ Automatic background sync every 4 minutes
 - ✅ Daily notes with multi-line text editing
 - ✅ Cursor visibility and text navigation in input fields
 - ✅ Edit and delete functionality for food entries

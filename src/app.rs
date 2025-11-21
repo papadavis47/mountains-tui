@@ -105,7 +105,7 @@ impl App {
     /// 1. Drawing the current screen
     /// 2. Reading user input events (with timeout)
     /// 3. Processing events and updating state
-    /// 4. Periodically syncing with Turso Cloud (every 60 seconds)
+    /// 4. Periodically syncing with Turso Cloud (every 4 minutes)
     /// 5. Repeating until the user quits
     ///
     /// The loop continues until should_quit becomes true.
@@ -130,7 +130,7 @@ impl App {
                 }
             }
 
-            // Check if we should sync with Turso Cloud (every 60 seconds)
+            // Check if we should sync with Turso Cloud (every 4 minutes)
             self.check_and_sync().await?;
 
             // Exit the loop if the user wants to quit
@@ -626,7 +626,7 @@ impl App {
                     self.state.current_screen = AppScreen::AddFood;
                 }
             }
-            KeyCode::Char('e') => {
+            KeyCode::Char('E') => {
                 // Edit item in focused list (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     match self.state.focused_section {
@@ -676,6 +676,14 @@ impl App {
                 // Add sokay entry (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.state.current_screen = AppScreen::AddSokay;
+                }
+            }
+            KeyCode::Char(' ') => {
+                // Toggle shortcuts help overlay
+                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    self.state.current_screen = AppScreen::ShortcutsHelp;
+                } else if matches!(self.state.current_screen, AppScreen::ShortcutsHelp) {
+                    self.state.current_screen = AppScreen::DailyView;
                 }
             }
             _ => {
@@ -862,6 +870,15 @@ impl App {
                     &mut self.sokay_list_state,
                     &self.sync_status,
                     sokay_index,
+                );
+            }
+            AppScreen::ShortcutsHelp => {
+                screens::render_shortcuts_help_screen(
+                    f,
+                    &self.state,
+                    &mut self.food_list_state,
+                    &mut self.sokay_list_state,
+                    &self.sync_status,
                 );
             }
         }
@@ -1261,14 +1278,14 @@ impl App {
     /// Checks if enough time has passed since last sync and syncs if appropriate
     ///
     /// This method:
-    /// 1. Checks if 60 seconds have passed since the last sync
+    /// 1. Checks if 4 minutes have passed since the last sync
     /// 2. Checks if the user is currently typing (in an input screen)
     /// 3. If enough time has passed and user is not typing, triggers a sync
     ///
     /// This ensures regular syncing while the app is active, but avoids
     /// interrupting the user during input operations.
     async fn check_and_sync(&mut self) -> Result<()> {
-        const SYNC_INTERVAL: Duration = Duration::from_secs(60);
+        const SYNC_INTERVAL: Duration = Duration::from_secs(240);
 
         // Check if enough time has passed since last sync
         if self.last_sync_time.elapsed() < SYNC_INTERVAL {

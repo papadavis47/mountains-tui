@@ -393,7 +393,7 @@ impl DbManager {
 
     /// Public method to manually trigger a sync with Turso Cloud
     ///
-    /// This is called periodically by the application (every 60 seconds) to keep
+    /// This is called periodically by the application (every 4 minutes) to keep
     /// the local database in sync with the cloud. Unlike the private sync() method,
     /// this returns a Result to allow the caller to handle errors if needed.
     ///
