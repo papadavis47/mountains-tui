@@ -1411,7 +1411,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Red))
                 .title("Warning: Permanent Deletion")
-                .padding(ratatui::widgets::Padding::new(0, 0, 1, 0)),
+                .padding(ratatui::widgets::Padding::new(1, 0, 1, 0)),
         )
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(warning_widget, chunks[1]);
