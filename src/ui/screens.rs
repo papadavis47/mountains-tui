@@ -33,10 +33,7 @@ pub fn render_home_screen(
     let chunks = create_standard_layout(f.area());
 
     // Render title with sync status
-    let title = format!(
-        "Mountains - A Trail Running Training Logger {}",
-        sync_status
-    );
+    let title = format!("Mountains - A Trail Running Training Log {}", sync_status);
     render_title(f, chunks[0], &title);
 
     // Create the list of daily logs
@@ -77,7 +74,7 @@ pub fn render_home_screen(
     render_help(
         f,
         chunks[2],
-        " ↑/k: up | ↓/j: down | Enter: select/today | Esc: unfocus | D: delete day | q: quit ",
+        " ↑/k: Up | ↓/j: Down | Enter: Select/Today | Esc: Unfocus | D: Delete Day | q: Quit ",
     );
 }
 
@@ -124,10 +121,22 @@ pub fn render_daily_view_screen(
     render_title(f, chunks[0], &title);
 
     // Render measurements section (Weight, Waist)
-    render_measurements_section(f, chunks[1], state.selected_date, &state.daily_logs, &state.focused_section);
+    render_measurements_section(
+        f,
+        chunks[1],
+        state.selected_date,
+        &state.daily_logs,
+        &state.focused_section,
+    );
 
     // Render running section (Miles, Elevation)
-    render_running_section(f, chunks[2], state.selected_date, &state.daily_logs, &state.focused_section);
+    render_running_section(
+        f,
+        chunks[2],
+        state.selected_date,
+        &state.daily_logs,
+        &state.focused_section,
+    );
 
     // Render food items list
     render_food_list_section(
@@ -141,19 +150,39 @@ pub fn render_daily_view_screen(
     );
 
     // Render sokay section (cumulative count + entries)
-    render_sokay_section(f, chunks[4], state.selected_date, &state.daily_logs, sokay_list_state, &state.focused_section, state.sokay_list_focused);
+    render_sokay_section(
+        f,
+        chunks[4],
+        state.selected_date,
+        &state.daily_logs,
+        sokay_list_state,
+        &state.focused_section,
+        state.sokay_list_focused,
+    );
 
     // Render strength & mobility section
-    render_strength_mobility_section(f, chunks[5], state.selected_date, &state.daily_logs, &state.focused_section);
+    render_strength_mobility_section(
+        f,
+        chunks[5],
+        state.selected_date,
+        &state.daily_logs,
+        &state.focused_section,
+    );
 
     // Render notes section
-    render_notes_section(f, chunks[6], state.selected_date, &state.daily_logs, &state.focused_section);
+    render_notes_section(
+        f,
+        chunks[6],
+        state.selected_date,
+        &state.daily_logs,
+        &state.focused_section,
+    );
 
     // Render help text with all available actions
     render_help(
         f,
         chunks[7],
-        " Shift+J/K: section | Tab: field | Enter: add | j/k: list | E: edit item | D: delete item | Space: shortcuts | Esc: back ",
+        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | E: Edit Item | D: Delete Item | Space: Shortcuts | Esc: Back ",
     );
 }
 
@@ -370,11 +399,12 @@ fn render_food_list_section(
     };
 
     // Determine highlight style based on BOTH section focus AND item focus
-    let highlight_style = if matches!(focused_section, FocusedSection::FoodItems) && food_list_focused {
-        create_highlight_style() // Show highlight when section AND item are focused
-    } else {
-        Style::default() // No highlight when unfocused
-    };
+    let highlight_style =
+        if matches!(focused_section, FocusedSection::FoodItems) && food_list_focused {
+            create_highlight_style() // Show highlight when section AND item are focused
+        } else {
+            Style::default() // No highlight when unfocused
+        };
 
     // Create and render the food list
     let list = List::new(items)
@@ -448,7 +478,8 @@ fn render_sokay_section(
     };
 
     // Determine highlight style based on BOTH section focus AND item focus
-    let highlight_style = if matches!(focused_section, FocusedSection::Sokay) && sokay_list_focused {
+    let highlight_style = if matches!(focused_section, FocusedSection::Sokay) && sokay_list_focused
+    {
         create_highlight_style() // Show highlight when section AND item are focused
     } else {
         Style::default() // No highlight when unfocused
@@ -616,15 +647,11 @@ pub fn render_add_food_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit food entry screen as a centered modal dialog
@@ -668,15 +695,11 @@ pub fn render_edit_food_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit weight screen as a centered modal dialog
@@ -719,15 +742,11 @@ pub fn render_edit_weight_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit waist measurement screen as a centered modal dialog
@@ -770,15 +789,11 @@ pub fn render_edit_waist_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit strength & mobility screen as a centered modal dialog
@@ -826,8 +841,7 @@ pub fn render_edit_strength_mobility_screen(
         wrap_at_width(input_buffer, width)
     };
 
-    let input = Paragraph::new(wrapped_text.clone())
-        .style(create_input_style());
+    let input = Paragraph::new(wrapped_text.clone()).style(create_input_style());
     // NO .wrap() - text is already wrapped manually
     f.render_widget(input, inner_area);
 
@@ -879,8 +893,7 @@ pub fn render_edit_notes_screen(
         wrap_at_width(input_buffer, width)
     };
 
-    let input = Paragraph::new(wrapped_text.clone())
-        .style(create_input_style());
+    let input = Paragraph::new(wrapped_text.clone()).style(create_input_style());
     // NO .wrap() - text is already wrapped manually
     f.render_widget(input, inner_area);
 
@@ -1214,15 +1227,11 @@ pub fn render_edit_miles_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit elevation screen as a centered modal dialog
@@ -1265,15 +1274,11 @@ pub fn render_edit_elevation_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the add sokay screen as a centered modal dialog
@@ -1299,7 +1304,10 @@ pub fn render_add_sokay_screen(
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Add Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
+    let title = format!(
+        "Add Sokay Entry - {}",
+        state.selected_date.format("%B %d, %Y")
+    );
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
@@ -1317,15 +1325,11 @@ pub fn render_add_sokay_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the edit sokay screen as a centered modal dialog
@@ -1351,7 +1355,10 @@ pub fn render_edit_sokay_screen(
     f.render_widget(Clear, popup_area);
 
     // Create the dialog block with title and padding
-    let title = format!("Edit Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
+    let title = format!(
+        "Edit Sokay Entry - {}",
+        state.selected_date.format("%B %d, %Y")
+    );
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
@@ -1369,15 +1376,11 @@ pub fn render_edit_sokay_screen(
 
     // Render the input text
     let input_text = format_input_with_cursor(input_buffer);
-    let input = Paragraph::new(input_text)
-        .style(create_input_style());
+    let input = Paragraph::new(input_text).style(create_input_style());
     f.render_widget(input, inner_area);
 
     // Set cursor position (inner area already accounts for borders and padding)
-    f.set_cursor_position((
-        inner_area.x + cursor_position as u16,
-        inner_area.y,
-    ));
+    f.set_cursor_position((inner_area.x + cursor_position as u16, inner_area.y));
 }
 
 /// Renders the delete day confirmation screen
