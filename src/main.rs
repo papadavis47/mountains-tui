@@ -8,7 +8,9 @@
 /// while the actual application logic is organized in separate modules.
 ///
 mod app; // Main application logic
+mod assets; // ASCII art and UI constants
 mod db_manager; // Database operations with Turso
+mod elevation_stats; // Elevation statistics calculations
 mod events; // Event handling modules
 mod file_manager; // File I/O operations
 mod models; // Data structures and types

@@ -6,6 +6,7 @@ A terminal-based training and nutrition tracking application built with Rust and
 
 This is a TUI (Terminal User Interface) application for tracking daily training activities, nutrition, and body measurements with the following features:
 
+- **Startup screen** - ASCII art logo with elevation statistics (monthly 1000+ days, yearly total, active streaks)
 - **Daily food logging** with date navigation
 - **Body measurements** - weight and waist size tracking
 - **Activity tracking** - miles covered (walking/hiking/running) and elevation gain
@@ -30,6 +31,20 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 
 ## Key Controls
 
+### Startup Screen
+
+The startup screen appears every time the application launches. It displays:
+- **ASCII art logo** - "MOUNTAINS" in large text art (centered)
+- **Subtitle** - "For Inspiration and Mindfulness"
+- **Monthly 1000+ days** - Count of days in current month with ≥1000 feet elevation
+- **Yearly total** - Total feet of elevation gain for the current calendar year
+- **Streak tracker** - Current consecutive days with ≥1000 feet elevation (minimum 2 days)
+
+#### Startup Screen Controls:
+- `N` - Go to Today's Log (creates if doesn't exist and opens DailyView)
+- `L` - Go to Log List (opens Home screen with all daily logs)
+- `q` - Quit application
+
 ### Home Screen
 
 The home screen starts with the list **unfocused** (no item highlighted).
@@ -46,6 +61,7 @@ The home screen starts with the list **unfocused** (no item highlighted).
 - `D` - Delete selected day (with confirmation)
 
 #### Always available:
+- `S` - Go to Startup Screen
 - `q` - Quit application
 
 ### Daily View
@@ -105,6 +121,7 @@ These shortcuts allow quick data entry without navigating sections. Press **Spac
 - `c` - Add new sokay entry
 - `t` - Edit strength & mobility exercises
 - `n` - Edit daily notes
+- `S` - Go to Startup Screen
 - `Esc` - Back to home screen
 
 ### Add/Edit Food Screens
@@ -153,6 +170,8 @@ src/
 ├── main.rs              # Application entry point
 ├── app.rs               # Main App struct and event loop
 ├── models.rs            # Data structures (FoodEntry, DailyLog, AppState, AppScreen)
+├── assets.rs            # ASCII art and UI constants
+├── elevation_stats.rs   # Elevation statistics calculations
 ├── db_manager.rs        # Database operations with Turso Cloud sync
 ├── file_manager.rs      # Markdown file I/O for backups
 ├── events/
@@ -218,7 +237,22 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (List Item Unfocus Functionality)
+### Latest Session (Startup Screen with Elevation Statistics)
+- ✅ **New startup screen** - Displays on every app launch with ASCII art logo and motivational subtitle
+- ✅ **Monthly 1000+ tracker** - Shows count of days in current calendar month with ≥1000 feet elevation gain
+- ✅ **Yearly elevation total** - Displays total feet of elevation gain for current calendar year (all amounts)
+- ✅ **Active streak tracking** - Shows consecutive days with ≥1000 feet elevation if streak extends to most recent logged day
+- ✅ **Streak encouragement** - Displays motivational message when no active streak (minimum 2 days required)
+- ✅ **Smart streak logic** - Missing data breaks streak (no entry = broken), only counts active streaks
+- ✅ **Navigation shortcuts** - N key goes to today's log, L key goes to log list, S key returns to startup
+- ✅ **Centered ASCII art** - "MOUNTAINS" logo displayed prominently with cyan/bold styling
+- ✅ **Color-coded stats** - White for counts, green for streak, yellow for subtitle
+- ✅ **New elevation_stats module** - Pure calculation functions with comprehensive tests
+- ✅ **Help text format** - Uppercase actions with lowercase keys (N: Today's Log | L: Log List | S: Startup Screen)
+- ✅ **S shortcut added** - Go back to Startup Screen from Home or DailyView (placed second-to-last in help text)
+- ✅ **Zero compilation warnings** - Clean build with proper module organization
+
+### Previous Session (List Item Unfocus Functionality)
 - ✅ **Unfocus list items** - Press Esc to remove item highlight while staying in Food/Sokay section
 - ✅ **Two-stage Esc behavior** - First Esc unfocuses item, second Esc returns to home screen
 - ✅ **Smart navigation from unfocused state** - j/↓ focuses first item, k/↑ focuses last item
@@ -462,7 +496,7 @@ Feeling strong today. Good hike in the morning.
 ## Architecture Notes
 
 - **App struct** - Main application coordinator managing state, database, and UI
-- **State management** - AppScreen enum for view routing (17 different screens)
+- **State management** - AppScreen enum for view routing (18 different screens including Startup)
 - **Dual persistence** - libsql database (primary) + markdown files (backup)
 - **Offline-first design** - Local database initializes instantly, cloud connection deferred to background
 - **Cloud sync** - Background sync with Turso Cloud via tokio task, graceful offline handling
@@ -470,7 +504,8 @@ Feeling strong today. Good hike in the morning.
 - **Async architecture** - Fully async event loop and database operations using tokio
 - **Thread-safe database** - Arc<RwLock<DbManager>> for shared access across async tasks
 - **Input handling** - Specialized handlers for text, numeric, integer, and multi-line input
-- **Modular design** - Separated concerns (models, events, ui, database, file management)
+- **Elevation statistics** - Dedicated module for calculating monthly/yearly stats and streaks
+- **Modular design** - Separated concerns (models, events, ui, database, file management, stats)
 - **Responsive UI** - Terminal size adaptation with ratatui layout system, live sync status display
 - **Data integrity** - Database transactions for atomic operations
 - **Error handling** - anyhow for ergonomic error propagation

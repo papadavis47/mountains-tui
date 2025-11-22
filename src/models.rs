@@ -152,6 +152,8 @@ pub enum FocusedSection {
 /// food entry being edited. This is an example of enums with data.
 #[derive(Debug, Clone)]
 pub enum AppScreen {
+    /// The startup screen showing ASCII art and elevation statistics
+    Startup,
     /// The main screen showing all daily logs
     Home,
     /// Viewing a specific day's food entries and measurements
@@ -214,13 +216,13 @@ pub struct AppState {
 impl AppState {
     /// Creates a new application state with default values
     ///
-    /// The application starts on the Home screen with today's date selected.
+    /// The application starts on the Startup screen with today's date selected.
     /// Focus starts on the Measurements section (Weight field) when entering DailyView.
     /// Lists start unfocused (no individual items highlighted).
     /// chrono::Local::now().date_naive() gets the current date in the local timezone.
     pub fn new() -> Self {
         Self {
-            current_screen: AppScreen::Home,
+            current_screen: AppScreen::Startup,
             selected_date: chrono::Local::now().date_naive(),
             daily_logs: Vec::new(),
             focused_section: FocusedSection::Measurements {

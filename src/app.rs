@@ -654,6 +654,23 @@ impl App {
                     self.handle_edit_strength_mobility();
                 }
             }
+            KeyCode::Char('N') => {
+                // Go to today's log (only available on startup screen)
+                if matches!(self.state.current_screen, AppScreen::Startup) {
+                    // Set selected_date to today
+                    self.state.selected_date = chrono::Local::now().date_naive();
+                    // Create the log if it doesn't exist
+                    self.state.get_or_create_daily_log(self.state.selected_date);
+                    // Switch to DailyView
+                    self.state.current_screen = AppScreen::DailyView;
+                }
+            }
+            KeyCode::Char('L') => {
+                // Go to log list (only available on startup screen)
+                if matches!(self.state.current_screen, AppScreen::Startup) {
+                    self.state.current_screen = AppScreen::Home;
+                }
+            }
             KeyCode::Char('n') => {
                 // Edit notes (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
@@ -676,6 +693,12 @@ impl App {
                 // Add sokay entry (only available in daily view)
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.state.current_screen = AppScreen::AddSokay;
+                }
+            }
+            KeyCode::Char('S') => {
+                // Go back to Startup screen (available from Home or DailyView)
+                if matches!(self.state.current_screen, AppScreen::Home | AppScreen::DailyView) {
+                    self.state.current_screen = AppScreen::Startup;
                 }
             }
             KeyCode::Char(' ') => {
@@ -733,6 +756,9 @@ impl App {
     /// rendering function based on the current screen enum value.
     fn ui(&mut self, f: &mut Frame) {
         match self.state.current_screen {
+            AppScreen::Startup => {
+                screens::render_startup_screen(f, &self.state);
+            }
             AppScreen::Home => {
                 screens::render_home_screen(f, &self.state, &mut self.list_state, &self.sync_status);
             }
