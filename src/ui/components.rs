@@ -72,7 +72,14 @@ pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
 /// Help text is displayed at the bottom of most screens.
 /// Keybindings are highlighted in yellow for better visual clarity.
 /// Format: "key: description | key: description"
-pub fn render_help(f: &mut Frame, area: Rect, help_text: &str) {
+///
+/// # Arguments
+/// * `f` - The frame to render to
+/// * `area` - The area to render in
+/// * `help_text` - The help text to display
+/// * `show_border` - Whether to show a border around the help text
+/// * `centered` - Whether to center the text horizontally
+pub fn render_help(f: &mut Frame, area: Rect, help_text: &str, show_border: bool, centered: bool) {
     let mut spans = Vec::new();
 
     // Split by pipe separator to get individual commands
@@ -109,8 +116,19 @@ pub fn render_help(f: &mut Frame, area: Rect, help_text: &str) {
         }
     }
 
-    let help_widget = Paragraph::new(Line::from(spans))
-        .block(Block::default().borders(Borders::ALL));
+    let block = if show_border {
+        Block::default().borders(Borders::ALL)
+    } else {
+        Block::default().borders(Borders::NONE)
+    };
+
+    let mut help_widget = Paragraph::new(Line::from(spans))
+        .block(block);
+
+    if centered {
+        help_widget = help_widget.alignment(ratatui::layout::Alignment::Center);
+    }
+
     f.render_widget(help_widget, area);
 }
 

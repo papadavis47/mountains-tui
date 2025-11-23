@@ -107,8 +107,8 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
 
     f.render_widget(content, chunks[1]);
 
-    // Render help text
-    render_help(f, chunks[2], " N: Today's Log | L: Log List | q: Quit ");
+    // Render help text without border for clean appearance, centered horizontally
+    render_help(f, chunks[2], " N: Today's Log | L: Log List | q: Quit ", false, true);
 }
 
 /// Renders the home screen showing all available daily logs
@@ -172,6 +172,8 @@ pub fn render_home_screen(
         f,
         chunks[2],
         " ↑/k: Up | ↓/j: Down | Enter: Select/Today | Esc: Unfocus | D: Delete Day | S: Startup Screen | q: Quit ",
+        true,
+        false,
     );
 }
 
@@ -280,6 +282,8 @@ pub fn render_daily_view_screen(
         f,
         chunks[7],
         " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | E: Edit Item | D: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back ",
+        true,
+        false,
     );
 }
 
@@ -1516,7 +1520,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(warning_widget, chunks[1]);
 
-    render_help(f, chunks[2], "Y: Delete Day | N/Esc: Cancel");
+    render_help(f, chunks[2], "Y: Delete Day | N/Esc: Cancel", true, false);
 }
 
 /// Renders the delete food item confirmation dialog as a centered modal

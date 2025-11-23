@@ -237,7 +237,17 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Startup Screen with Elevation Statistics)
+### Latest Session (Startup Screen Help Text Centering)
+- ✅ **Centered help text** - Help text on Startup screen now centered horizontally while maintaining vertical position
+- ✅ **Added `centered` parameter** - Extended `render_help()` function with optional horizontal centering control
+- ✅ **Isolated change** - Only Startup screen affected; all other screens maintain left-aligned help text
+
+### Previous Session (Startup Screen UI Polish)
+- ✅ **Borderless help text** - Removed border from help text on Startup screen for cleaner, less cluttered appearance
+- ✅ **Selective border control** - Added `show_border` parameter to `render_help()` function for fine-grained control
+- ✅ **Maintained consistency** - All other screens retain bordered help text (only Startup screen affected)
+
+### Previous Session (Startup Screen with Elevation Statistics)
 - ✅ **New startup screen** - Displays on every app launch with ASCII art logo and motivational subtitle
 - ✅ **Monthly 1000+ tracker** - Shows count of days in current calendar month with ≥1000 feet elevation gain
 - ✅ **Yearly elevation total** - Displays total feet of elevation gain for current calendar year (all amounts)
