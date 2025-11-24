@@ -6,6 +6,8 @@
 
 #### _A digital tool to help runners get good at vert : )_
 
+![Title on Startup](./images/title-startup-screen.png)
+
 This is a training log I made for myself - to get lighter and to train with more awareness for trail running. It grew out of my desire to improve my ability to go faster uphill and run on trails for many miles.
 
 **Mountains** can also help with food awareness - **initially my main motivation to create this software!**.
