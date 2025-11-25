@@ -1,9 +1,3 @@
-/// This module handles all database operations using libsql with Turso Cloud.
-/// It implements an embedded replica strategy where:
-/// - Local database file is stored in ~/.mountains/mountains.db
-/// - Changes are automatically synced to Turso Cloud
-/// - The app works offline and syncs when connected
-///
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use libsql::{Builder, Connection, Database};
@@ -14,32 +8,20 @@ use tokio::sync::RwLock;
 
 use crate::models::{DailyLog, FoodEntry};
 
-/// Connection state for Turso Cloud sync
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionState {
-    /// Not connected to Turso Cloud (local-only mode)
     Disconnected,
-    /// Successfully connected to Turso Cloud
     Connected,
-    /// Connection error (includes error message)
     Error(String),
 }
 
-/// Database manager that handles Turso Cloud sync
 pub struct DbManager {
-    /// The libsql database instance with embedded replica
     db: Database,
-    /// Active connection to the database
     conn: Connection,
-    /// Current connection state for cloud sync
     connection_state: Arc<RwLock<ConnectionState>>,
 }
 
 impl DbManager {
-    /// Creates a new database manager with instant startup
-    ///
-    /// Always starts with a local connection for instant startup.
-    /// Cloud sync is handled in the background via upgrade_to_remote_replica().
     pub async fn new_local_first(data_dir: &PathBuf) -> Result<Self> {
         // Get local database path
         let db_path = data_dir.join("mountains.db");
@@ -74,13 +56,7 @@ impl DbManager {
         Ok(manager)
     }
 
-    /// Upgrades local database to remote replica in the background
-    ///
-    /// This should be called after new_local_first() if credentials are available
-    /// and the initial connection was local-only.
-    ///
-    /// Note: This recreates the database as a remote replica since libsql doesn't
-    /// support converting an existing local database to a remote replica.
+    /// Upgrades local database to remote replica (recreates as libsql can't convert in-place)
     pub async fn upgrade_to_remote_replica(
         &mut self,
         db_path_str: &str,
@@ -144,17 +120,10 @@ impl DbManager {
         }
     }
 
-    /// Returns the current connection state
     pub async fn get_connection_state(&self) -> ConnectionState {
         self.connection_state.read().await.clone()
     }
 
-    /// Initializes the database schema
-    ///
-    /// Creates tables if they don't exist:
-    /// - daily_logs: Primary table for daily records
-    /// - food_entries: Food items with foreign key to daily_logs
-    /// - sokay_entries: Sokay items with foreign key to daily_logs
     async fn init_schema(&mut self) -> Result<()> {
         // Create daily_logs table with all columns
         self.conn
@@ -222,14 +191,6 @@ impl DbManager {
         Ok(())
     }
 
-    /// Saves a daily log to the database
-    ///
-    /// This performs a complete save operation:
-    /// 1. Upserts the daily_logs record (updates if exists, inserts if not)
-    /// 2. Deletes all existing food entries for the date
-    /// 3. Inserts all current food entries
-    ///
-    /// Uses a transaction to ensure all-or-nothing behavior.
     pub async fn save_daily_log(&mut self, log: &DailyLog) -> Result<()> {
         let date_str = log.date.format("%Y-%m-%d").to_string();
 
@@ -297,9 +258,6 @@ impl DbManager {
         Ok(())
     }
 
-    /// Loads all daily logs from the database
-    ///
-    /// Returns a vector of all daily logs, sorted by date (newest first).
     pub async fn load_all_daily_logs(&self) -> Result<Vec<DailyLog>> {
         // Query all dates from daily_logs
         let mut rows = self
@@ -373,13 +331,7 @@ impl DbManager {
         Ok(daily_logs)
     }
 
-    /// Manually triggers a sync with Turso Cloud
-    ///
-    /// This is called after save operations to ensure changes are synced promptly.
-    /// Errors are silently ignored since sync is a best-effort operation.
-    /// Changes are saved locally and will sync when connection is restored.
-    ///
-    /// Only syncs if connection state is Connected.
+    /// Best-effort sync after save/delete operations
     async fn sync(&self) {
         // Only sync if we're connected to Turso
         let state = self.connection_state.read().await;
@@ -391,14 +343,7 @@ impl DbManager {
         let _ = self.db.sync().await; // Ignore sync errors - best effort
     }
 
-    /// Public method to manually trigger a sync with Turso Cloud
-    ///
-    /// This is called periodically by the application (every 4 minutes) to keep
-    /// the local database in sync with the cloud. Unlike the private sync() method,
-    /// this returns a Result to allow the caller to handle errors if needed.
-    ///
-    /// Returns Ok(()) on successful sync, or an error if sync fails.
-    /// Returns early (no error) if not connected to cloud.
+    /// Periodic sync (called every 4 minutes by background task)
     pub async fn sync_now(&self) -> Result<()> {
         // Only sync if we're connected to Turso
         let state = self.connection_state.read().await;
@@ -414,15 +359,6 @@ impl DbManager {
         Ok(())
     }
 
-    /// Deletes an entire daily log and all associated entries
-    ///
-    /// This performs a complete deletion:
-    /// 1. Deletes all food entries for the date (cascaded by foreign key)
-    /// 2. Deletes all sokay entries for the date (cascaded by foreign key)
-    /// 3. Deletes the daily_logs record
-    ///
-    /// The foreign key constraints with ON DELETE CASCADE ensure that
-    /// deleting the daily_logs record automatically deletes related entries.
     pub async fn delete_daily_log(&mut self, date: NaiveDate) -> Result<()> {
         let date_str = date.format("%Y-%m-%d").to_string();
 

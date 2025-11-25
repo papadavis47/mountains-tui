@@ -34,6 +34,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 ### Startup Screen
 
 The startup screen appears every time the application launches. It displays:
+
 - **ASCII art logo** - "MOUNTAINS" in large text art (centered)
 - **Subtitle** - "For Inspiration and Mindfulness"
 - **Monthly 1000+ days** - Count of days in current month with ≥1000 feet elevation
@@ -41,6 +42,7 @@ The startup screen appears every time the application launches. It displays:
 - **Streak tracker** - Current consecutive days with ≥1000 feet elevation (minimum 2 days)
 
 #### Startup Screen Controls:
+
 - `N` - Go to Today's Log (creates if doesn't exist and opens DailyView)
 - `L` - Go to Log List (opens Home screen with all daily logs)
 - `q` - Quit application
@@ -50,17 +52,20 @@ The startup screen appears every time the application launches. It displays:
 The home screen starts with the list **unfocused** (no item highlighted).
 
 #### When list is unfocused:
+
 - `Enter` - Go to today's log (creating if needed)
 - `j` or `↓` - Focus list and select first item (most recent date)
 - `k` or `↑` - Focus list and select last item (oldest date)
 
 #### When list is focused:
+
 - `↑/↓` or `j/k` - Navigate between dates
 - `Enter` - Go to selected date's log
 - `Esc` - Unfocus the list (remove highlight)
 - `D` - Delete selected day (with confirmation)
 
 #### Always available:
+
 - `S` - Go to Startup Screen
 - `q` - Quit application
 
@@ -69,6 +74,7 @@ The home screen starts with the list **unfocused** (no item highlighted).
 The daily view shows all sections for tracking your training day: **Measurements**, **Running**, **Food Items**, **Sokay**, **Strength & Mobility**, and **Notes**.
 
 #### Section Navigation
+
 - `Shift+J` - Move focus to next section (down)
 - `Shift+K` - Move focus to previous section (up)
 - **Navigation order:** Measurements → Running → Food Items → Sokay → Strength & Mobility → Notes → (wraps to Measurements)
@@ -76,6 +82,7 @@ The daily view shows all sections for tracking your training day: **Measurements
 - Unfocused sections have **dimmed gray borders**
 
 #### Field Navigation (Measurements & Running sections only)
+
 - `Tab` - Toggle between fields within a section
   - **Measurements:** Weight ↔ Waist
   - **Running:** Miles ↔ Elevation
@@ -86,6 +93,7 @@ The daily view shows all sections for tracking your training day: **Measurements
 Lists start **unfocused** (no item highlighted) for quick access to adding new entries.
 
 **When list is unfocused:**
+
 - `j/↓` - Focus first item in the list
 - `k/↑` - Focus last item in the list
 - `Enter` - Add new entry (same as when focused)
@@ -93,12 +101,14 @@ Lists start **unfocused** (no item highlighted) for quick access to adding new e
 - `Esc` - Return to home screen
 
 **When list is focused (item highlighted):**
+
 - `↑/↓` or `j/k` - Navigate between items
 - `E` - Edit selected item
 - `D` - Delete selected item (with confirmation)
 - `Esc` - Unfocus the item (remove highlight), next Esc returns to home
 
 #### Editing Data
+
 - `Enter` - Edit the focused section/field or add new entry (for Food/Sokay)
   - **Measurements/Running:** Opens input for the focused field
   - **Food Items:** Opens "Add Food" dialog
@@ -106,13 +116,16 @@ Lists start **unfocused** (no item highlighted) for quick access to adding new e
   - **Strength & Mobility/Notes:** Opens editor for that section
 
 #### Shortcuts Overlay
+
 - `Space` - Toggle shortcuts help overlay (shows all quick access shortcuts)
   - Press Space again to close the overlay
   - Displays data entry shortcuts grouped by category (Measurements, Activity, Nutrition, Training)
   - Only works when not typing in an input field
 
 #### Quick Access Shortcuts
+
 These shortcuts allow quick data entry without navigating sections. Press **Space** to see the full list in an overlay.
+
 - `w` - Edit weight measurement
 - `s` - Edit waist measurement
 - `m` - Edit miles covered
@@ -220,6 +233,7 @@ Push-ups: 3x15
 Hip mobility stretches: 10 minutes
 
 ## Notes
+
 Feeling strong today. Good hike in the morning.
 ```
 
@@ -237,17 +251,29 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Startup Screen Help Text Centering)
+### Latest Session (Code Comment Cleanup)
+
+- ✅ **Removed verbose comments** - Cleaned up overly detailed and pedagogical comments across entire codebase
+- ✅ **Focused on "why" not "what"** - Kept only essential doc comments that explain purpose, removed obvious inline narration
+- ✅ **Simplified function documentation** - Reduced multi-paragraph explanations to concise single-line doc comments or removed them entirely
+- ✅ **Files cleaned up** - main.rs, app.rs, events/handlers.rs, models.rs, elevation_stats.rs, file_manager.rs, ui/components.rs, db_manager.rs
+- ✅ **Zero compilation warnings** - All changes verified with cargo check, code remains fully functional
+- ✅ **Cleaner codebase** - More professional, production-ready code with minimal commentary
+
+### Previous Session (Startup Screen Help Text Centering)
+
 - ✅ **Centered help text** - Help text on Startup screen now centered horizontally while maintaining vertical position
 - ✅ **Added `centered` parameter** - Extended `render_help()` function with optional horizontal centering control
 - ✅ **Isolated change** - Only Startup screen affected; all other screens maintain left-aligned help text
 
 ### Previous Session (Startup Screen UI Polish)
+
 - ✅ **Borderless help text** - Removed border from help text on Startup screen for cleaner, less cluttered appearance
 - ✅ **Selective border control** - Added `show_border` parameter to `render_help()` function for fine-grained control
 - ✅ **Maintained consistency** - All other screens retain bordered help text (only Startup screen affected)
 
 ### Previous Session (Startup Screen with Elevation Statistics)
+
 - ✅ **New startup screen** - Displays on every app launch with ASCII art logo and motivational subtitle
 - ✅ **Monthly 1000+ tracker** - Shows count of days in current calendar month with ≥1000 feet elevation gain
 - ✅ **Yearly elevation total** - Displays total feet of elevation gain for current calendar year (all amounts)
@@ -263,6 +289,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compilation warnings** - Clean build with proper module organization
 
 ### Previous Session (List Item Unfocus Functionality)
+
 - ✅ **Unfocus list items** - Press Esc to remove item highlight while staying in Food/Sokay section
 - ✅ **Two-stage Esc behavior** - First Esc unfocuses item, second Esc returns to home screen
 - ✅ **Smart navigation from unfocused state** - j/↓ focuses first item, k/↑ focuses last item
@@ -275,6 +302,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compilation warnings** - Clean build with proper borrow checker handling
 
 ### Previous Session (Individual Item Deletion with Confirmation)
+
 - ✅ **Delete individual items** - Press 'D' (uppercase) to delete highlighted food or sokay items
 - ✅ **Confirmation dialogs** - Small centered modal (60% x 20%) overlays daily view before deletion
 - ✅ **y/n prompts** - Simple confirmation: 'y' to delete, 'n' or Esc to cancel
@@ -285,6 +313,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Item preview** - Shows the exact item being deleted in the confirmation dialog
 
 ### Previous Session (Optimistic UI Updates - Instant Feedback)
+
 - ✅ **Instant visual feedback** - All input operations (food, sokay, measurements, notes) now respond immediately without waiting for disk I/O
 - ✅ **Optimistic update pattern** - State updates happen instantly, persistence happens in background
 - ✅ **Sub-second responsiveness** - Press Enter and see changes immediately (previously had 1-second delay)
@@ -297,6 +326,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Improved architecture** - Clean separation between UI responsiveness and data durability
 
 ### Previous Session (List Padding & Scrolling Enhancement)
+
 - ✅ **Added vertical padding to all lists** - Home screen, Food Items, and Sokay lists now have uniform padding (top, bottom, left, right)
 - ✅ **Improved visual spacing** - List items no longer touch the top and bottom borders of their sections
 - ✅ **Better readability** - Consistent padding across all list widgets for a cleaner appearance
@@ -304,6 +334,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Scalable design** - Application can handle 50-100+ training log entries with seamless scrolling
 
 ### Previous Session (UI Refinements - Modal Sizes & Title Styling)
+
 - ✅ **Reduced measurement modal sizes** - Weight, Waist, Miles, and Elevation input dialogs now 12% width x 8% height (previously 30% x 15%)
 - ✅ **Reduced Food/Sokay modal heights** - Add/Edit Food and Add/Edit Sokay dialogs now 50% width x 13% height (previously 50% x 25%)
 - ✅ **Removed redundant dates** - Measurement modal titles no longer show date (already visible at top of screen)
@@ -314,6 +345,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Improved focus** - smaller dialogs draw less attention away from the daily view in the background
 
 ### Previous Session (Environment Variable Loading Fix)
+
 - ✅ **Fixed cloud sync for installed binary** - binary now loads `.env` from data directory (`~/.mountains/.env`)
 - ✅ **Directory-independent operation** - app now syncs to Turso Cloud from any directory
 - ✅ **Dual .env loading** - checks data directory first, falls back to current directory for development
@@ -321,6 +353,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Improved portability** - installed binary behaves consistently regardless of working directory
 
 ### Previous Session (Multi-line Input Cursor Sync Fix with Word Wrapping)
+
 - ✅ **Fixed cursor desync in multi-line inputs** - cursor now stays perfectly synced with typed text even after line wrapping
 - ✅ **Word-based wrapping** - implemented smart word-wrapping that keeps words together when possible
 - ✅ **Graceful long-word handling** - words longer than line width break at character boundaries
@@ -334,6 +367,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compilation warnings** - clean build with proper implementation
 
 ### Previous Session (Home Screen Unfocus & Today Quick Access)
+
 - ✅ **Unfocused initial state** - Home screen starts with no item highlighted for quick access to today
 - ✅ **Esc to unfocus** - Press Esc on home screen to remove list highlight
 - ✅ **Enter for today** - When unfocused, Enter goes directly to today's log (creating if needed)
@@ -343,6 +377,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero behavioral changes to focused mode** - List navigation works exactly as before when focused
 
 ### Previous Session (Section-Based Navigation System)
+
 - ✅ **Comprehensive section navigation** - Navigate through all sections with Shift+J/K (Measurements → Running → Food → Sokay → Strength & Mobility → Notes)
 - ✅ **Field-level focus** - Tab key toggles between fields within Measurements (Weight/Waist) and Running (Miles/Elevation) sections
 - ✅ **Visual focus indicators** - Focused sections show bright colored borders, focused fields show ► symbol
@@ -356,6 +391,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compilation warnings** - Clean build with proper type safety
 
 ### Previous Session (UI Refinements - List Formatting, Delete Confirmation & Focus Highlighting)
+
 - ✅ **Removed numbering from Food Items list** - Food entries now display with bullet points (`-`) instead of numbers
 - ✅ **Removed numbering from Sokay list** - Sokay entries now display with bullet points (`-`) instead of numbers
 - ✅ **Consistent formatting** - Terminal UI now matches markdown export format (both use bullets)
@@ -366,6 +402,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Cleaner focus indication** - Highlight disappears when switching focus with Shift+J/K, reappears when switching back
 
 ### Previous Session (Modal Dialog Refinements - Padding, Cursor & Wrapping Fixes)
+
 - ✅ **Fixed critical cursor lag bug** - cursor now properly tracks character position in real-time
 - ✅ **Implemented character-based wrapping** - replaced ratatui's word-wrapping with manual character-boundary wrapping
 - ✅ **Added `wrap_text_at_chars()` helper** - wraps text at exact character width for predictable cursor positioning
@@ -386,6 +423,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compiler warnings** - application builds cleanly
 
 ### Previous Session (Modal Dialog Input Screens)
+
 - ✅ **Centered modal dialogs** - all input screens now appear as small centered popups instead of full-screen
 - ✅ **Daily view remains visible** - background view stays visible during input for better context
 - ✅ **Clear widget usage** - prevents visual artifacts by clearing popup area before rendering
@@ -398,6 +436,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Better UX** - users can see the daily log while entering data, reducing need to remember context
 
 ### Previous Session (Dual-List DailyView with Focus Switching)
+
 - ✅ **Scrollable Sokay list** - converted from Paragraph to List widget with full navigation support
 - ✅ **Equal-sized lists** - Sokay section now matches Food section size (Constraint::Min(4))
 - ✅ **Focus switching** - Shift+J/K switches focus between Food and Sokay lists
@@ -410,6 +449,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Updated documentation** - CLAUDE.md reflects new dual-list navigation model
 
 ### Previous Session (Remove Ctrl+J Functionality)
+
 - ✅ **Removed Ctrl+J newline insertion** - non-functional keyboard shortcut eliminated
 - ✅ **Simplified multi-line editing** - Enter saves, arrow keys navigate (no special key combo needed)
 - ✅ **Updated UI help text** - removed Ctrl+J references from strength & mobility and notes screens
@@ -417,6 +457,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero warnings** - application compiles cleanly
 
 ### Previous Session (Startup Performance Fix)
+
 - ✅ **Fixed startup delay** - removed blocking remote replica connection that was causing 1-2 second hang
 - ✅ **True offline-first startup** - always begins with local database, regardless of replica metadata
 - ✅ **Simplified initialization** - eliminated complex conditional logic that was trying to connect to Turso Cloud synchronously
@@ -424,6 +465,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Instant launch** - app now starts immediately as designed, cloud connection happens asynchronously
 
 ### Previous Session (Data Model Cleanup - Remove Food Entry Notes)
+
 - ✅ **Removed unused notes field from FoodEntry** - legacy from when app was just a food tracker
 - ✅ **Simplified data model** - food entries now just store name (notes belong to daily log only)
 - ✅ **Database migration** - automatic removal of notes column from food_entries table
@@ -431,11 +473,13 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Code cleanup** - removed dead code and unused parameters throughout the codebase
 
 ### Previous Session (UI Styling Enhancements)
+
 - ✅ **Rounded borders** - title blocks now use smooth, curved corners instead of sharp edges
 - ✅ **Vertical padding** - increased spacing above and below title text for better visual balance
 - ✅ **Enhanced visual polish** - improved overall aesthetic with BorderType::Rounded and Padding::vertical
 
 ### Previous Session (Offline-First Startup with Deferred Turso Sync)
+
 - ✅ **Instant startup** - app launches immediately without waiting for cloud connection
 - ✅ **Offline-first architecture** - local database initializes first, cloud connects in background
 - ✅ **Background sync** - Turso Cloud connection established asynchronously after app starts
@@ -446,6 +490,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero startup delay** - eliminates network wait time that previously blocked UI initialization
 
 ### Previous Session (Delete Day Functionality)
+
 - ✅ **Full CRUD functionality** - added ability to delete entire days
 - ✅ **Delete from Home screen** - select a day and press 'D' to delete
 - ✅ **Confirmation prompt** - "Are you sure?" screen with Y/n confirmation
@@ -455,6 +500,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Confirmation message** - displays all data that will be deleted
 
 ### Previous Session (Critical Bug Fixes)
+
 - ✅ **Fixed async runtime deadlock** - converted all database operations to proper async/await instead of `block_on()`
 - ✅ **Fixed terminal freeze on save** - eliminated panic when saving entries by removing nested async runtime calls
 - ✅ **Fixed UI message interference** - removed `eprintln!` messages that stayed on screen after TUI initialization
@@ -463,6 +509,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero compiler warnings** - application compiles cleanly with no warnings
 
 ### Previous Session (Code Cleanup)
+
 - ✅ **Removed unused code** - cleaned up dead code that was never executed
 - ✅ **Database methods** - removed `DbManager::load_daily_log` (app loads all logs at startup)
 - ✅ **File loading methods** - removed markdown parsing functions (app is database-first now)
@@ -472,6 +519,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Zero warnings** - application now compiles with no warnings
 
 ### Previous Session (Strength & Mobility Tracking)
+
 - ✅ **Strength & mobility field** - multi-line text input for logging exercises
 - ✅ **`t` keyboard shortcut** - quick access to edit strength & mobility
 - ✅ **Cyan-colored display** - positioned between food log and notes
@@ -481,6 +529,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Cloud sync support** - integrated with Turso Cloud sync
 
 ### Previous Session (Training Log Expansion)
+
 - ✅ **Miles covered tracking** - track walking/hiking/running distance with decimal precision
 - ✅ **Elevation gain tracking** - integer-only input for feet climbed
 - ✅ **Sokay tracking system** - accountability for unhealthy food choices
@@ -491,6 +540,7 @@ Feeling strong today. Good hike in the morning.
 - ✅ **Extended measurements display** - all tracking fields visible in daily view
 
 ### Previous Sessions
+
 - ✅ Turso Cloud integration with local libsql database
 - ✅ Dual persistence (cloud database + markdown backups)
 - ✅ Automatic background sync every 4 minutes
@@ -533,11 +583,17 @@ Feeling strong today. Good hike in the morning.
 - **ConnectionState** - Enum tracking sync status (Disconnected, Connecting, Connected, Error)
 - **FileManager** - Markdown serialization/deserialization for backups
 
+# Rust coding guidelines
+
+- Prioritize code correctness and clarity. Speed and efficiency are secondary priorities unless otherwise specified.
+- Do not write comments that summarize the code. Comments should only be written in order to explain "why" the code is written in some way in the case there is a reason that is tricky / non-obvious. But do write comments that document APIs.
+
 # important-instruction-reminders
 
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
+
 - always update @CLAUDE.md with changes
 - clean up dead code as the app evolves and changes are made
