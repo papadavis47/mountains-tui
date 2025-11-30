@@ -1,7 +1,8 @@
 use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
 use crate::models::{
-    AppScreen, AppState, DailyLog, FocusedSection, FoodEntry, MeasurementField, RunningField,
+    field_accessor::FieldType, AppScreen, AppState, DailyLog, FocusedSection, FoodEntry,
+    MeasurementField, RunningField,
 };
 use crossterm::event::KeyCode;
 use std::sync::Arc;
@@ -416,18 +417,15 @@ impl ActionHandler {
         food_index: usize,
         new_name: String,
     ) -> Option<DailyLog> {
-        if !new_name.is_empty() {
-            if let Some(log) = state
+        if !new_name.is_empty()
+            && let Some(log) = state
                 .daily_logs
                 .iter_mut()
                 .find(|log| log.date == state.selected_date)
-            {
-                if food_index < log.food_entries.len() {
+                && food_index < log.food_entries.len() {
                     log.food_entries[food_index].name = new_name;
                     return Some(log.clone());
                 }
-            }
-        }
         None
     }
 
@@ -439,41 +437,11 @@ impl ActionHandler {
             .daily_logs
             .iter_mut()
             .find(|log| log.date == state.selected_date)
-        {
-            if food_index < log.food_entries.len() {
+            && food_index < log.food_entries.len() {
                 log.remove_food_entry(food_index);
                 return Some(log.clone());
             }
-        }
         None
-    }
-
-    pub fn update_weight(
-        state: &mut AppState,
-        weight_input: String,
-    ) -> DailyLog {
-        let weight: Option<f32> = if weight_input.is_empty() {
-            None
-        } else {
-            weight_input.parse().ok()
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.weight = weight;
-        log.clone()
-    }
-
-    pub fn update_waist(
-        state: &mut AppState,
-        waist_input: String,
-    ) -> DailyLog {
-        let waist: Option<f32> = if waist_input.is_empty() {
-            None
-        } else {
-            waist_input.parse().ok()
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.waist = waist;
-        log.clone()
     }
 
     pub fn handle_home_enter(state: &mut AppState, selected_index: Option<usize>) {
@@ -487,123 +455,46 @@ impl ActionHandler {
         state.current_screen = AppScreen::DailyView;
     }
 
+    /// Generic field accessor - gets current value for editing
+    pub fn start_edit_field(state: &AppState, field_type: FieldType) -> String {
+        field_type.get_value(state)
+    }
+
+    /// Generic field updater - updates field with new value
+    pub fn update_field(state: &mut AppState, field_type: FieldType, input: String) -> DailyLog {
+        field_type.update_value(state, input)
+    }
+
     pub fn start_edit_food(state: &AppState, food_index: usize) -> Option<String> {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if food_index < log.food_entries.len() {
+        if let Some(log) = state.get_daily_log(state.selected_date)
+            && food_index < log.food_entries.len() {
                 return Some(log.food_entries[food_index].name.clone());
             }
-        }
         None
     }
 
     pub fn start_edit_weight(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(weight) = log.weight {
-                return weight.to_string();
-            }
-        }
-        String::new()
+        Self::start_edit_field(state, FieldType::Weight)
     }
 
     pub fn start_edit_waist(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(waist) = log.waist {
-                return waist.to_string();
-            }
-        }
-        String::new()
-    }
-
-    pub fn update_strength_mobility(
-        state: &mut AppState,
-        sm_input: String,
-    ) -> DailyLog {
-        let strength_mobility: Option<String> = if sm_input.trim().is_empty() {
-            None
-        } else {
-            Some(sm_input)
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.strength_mobility = strength_mobility;
-        log.clone()
+        Self::start_edit_field(state, FieldType::Waist)
     }
 
     pub fn start_edit_strength_mobility(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(sm) = &log.strength_mobility {
-                return sm.clone();
-            }
-        }
-        String::new()
-    }
-
-    pub fn update_notes(
-        state: &mut AppState,
-        notes_input: String,
-    ) -> DailyLog {
-        let notes: Option<String> = if notes_input.trim().is_empty() {
-            None
-        } else {
-            Some(notes_input)
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.notes = notes;
-        log.clone()
+        Self::start_edit_field(state, FieldType::StrengthMobility)
     }
 
     pub fn start_edit_notes(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(notes) = &log.notes {
-                return notes.clone();
-            }
-        }
-        String::new()
-    }
-
-    pub fn update_miles(
-        state: &mut AppState,
-        miles_input: String,
-    ) -> DailyLog {
-        let miles: Option<f32> = if miles_input.is_empty() {
-            None
-        } else {
-            miles_input.parse().ok()
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.miles_covered = miles;
-        log.clone()
-    }
-
-    pub fn update_elevation(
-        state: &mut AppState,
-        elevation_input: String,
-    ) -> DailyLog {
-        let elevation: Option<i32> = if elevation_input.is_empty() {
-            None
-        } else {
-            elevation_input.parse().ok()
-        };
-        let log = state.get_or_create_daily_log(state.selected_date);
-        log.elevation_gain = elevation;
-        log.clone()
+        Self::start_edit_field(state, FieldType::Notes)
     }
 
     pub fn start_edit_miles(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(miles) = log.miles_covered {
-                return miles.to_string();
-            }
-        }
-        String::new()
+        Self::start_edit_field(state, FieldType::Miles)
     }
 
     pub fn start_edit_elevation(state: &AppState) -> String {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if let Some(elevation) = log.elevation_gain {
-                return elevation.to_string();
-            }
-        }
-        String::new()
+        Self::start_edit_field(state, FieldType::Elevation)
     }
 
     pub fn save_sokay_entry(
@@ -623,18 +514,15 @@ impl ActionHandler {
         sokay_index: usize,
         new_text: String,
     ) -> Option<DailyLog> {
-        if !new_text.is_empty() {
-            if let Some(log) = state
+        if !new_text.is_empty()
+            && let Some(log) = state
                 .daily_logs
                 .iter_mut()
                 .find(|log| log.date == state.selected_date)
-            {
-                if sokay_index < log.sokay_entries.len() {
+                && sokay_index < log.sokay_entries.len() {
                     log.sokay_entries[sokay_index] = new_text;
                     return Some(log.clone());
                 }
-            }
-        }
         None
     }
 
@@ -646,21 +534,18 @@ impl ActionHandler {
             .daily_logs
             .iter_mut()
             .find(|log| log.date == state.selected_date)
-        {
-            if sokay_index < log.sokay_entries.len() {
+            && sokay_index < log.sokay_entries.len() {
                 log.remove_sokay_entry(sokay_index);
                 return Some(log.clone());
             }
-        }
         None
     }
 
     pub fn start_edit_sokay(state: &AppState, sokay_index: usize) -> Option<String> {
-        if let Some(log) = state.get_daily_log(state.selected_date) {
-            if sokay_index < log.sokay_entries.len() {
+        if let Some(log) = state.get_daily_log(state.selected_date)
+            && sokay_index < log.sokay_entries.len() {
                 return Some(log.sokay_entries[sokay_index].clone());
             }
-        }
         None
     }
 

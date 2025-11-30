@@ -90,12 +90,11 @@ impl App {
 
             terminal.draw(|f| self.ui(f))?;
 
-            if crossterm::event::poll(Duration::from_millis(100))? {
-                if let Event::Key(key) = crossterm::event::read()? {
+            if crossterm::event::poll(Duration::from_millis(100))?
+                && let Event::Key(key) = crossterm::event::read()? {
                     self.handle_key_event_with_modifiers(key.code, key.modifiers)
                         .await?;
                 }
-            }
 
             if self.should_quit {
                 break;
@@ -112,30 +111,15 @@ impl App {
         match self.state.current_screen {
             AppScreen::AddFood => self.handle_add_food_input(key).await?,
             AppScreen::EditFood(food_index) => self.handle_edit_food_input(key, food_index).await?,
-            AppScreen::EditWeight => self.handle_edit_weight_input(key).await?,
-            AppScreen::EditWaist => self.handle_edit_waist_input(key).await?,
-            AppScreen::EditMiles => self.handle_edit_miles_input(key).await?,
-            AppScreen::EditElevation => self.handle_edit_elevation_input(key).await?,
             AppScreen::AddSokay => self.handle_add_sokay_input(key).await?,
             AppScreen::EditSokay(sokay_index) => {
                 self.handle_edit_sokay_input(key, sokay_index).await?
             }
-            AppScreen::EditStrengthMobility => {
-                self.handle_edit_strength_mobility_input_with_modifiers(key, modifiers)
-                    .await?
+            AppScreen::InputField(field_type) => {
+                self.handle_field_input(key, field_type).await?;
             }
-            AppScreen::EditNotes => {
-                self.handle_edit_notes_input_with_modifiers(key, modifiers)
-                    .await?
-            }
-            AppScreen::ConfirmDeleteDay => {
-                self.handle_confirm_delete_day_input(key).await?
-            }
-            AppScreen::ConfirmDeleteFood(food_index) => {
-                self.handle_confirm_delete_food_input(key, food_index).await?
-            }
-            AppScreen::ConfirmDeleteSokay(sokay_index) => {
-                self.handle_confirm_delete_sokay_input(key, sokay_index).await?
+            AppScreen::ConfirmDelete(target) => {
+                self.handle_delete_confirmation_input(key, target).await?;
             }
             _ => self.handle_navigation_input(key, modifiers).await?,
         }
@@ -206,69 +190,19 @@ impl App {
         Ok(())
     }
 
-    async fn handle_edit_weight_input(&mut self, key: KeyCode) -> Result<()> {
-        match key {
-            KeyCode::Enter => {
-                let log = ActionHandler::update_weight(
-                    &mut self.state,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-            KeyCode::Esc => {
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {
-                self.input_handler.handle_numeric_input(key);
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_edit_waist_input(&mut self, key: KeyCode) -> Result<()> {
-        match key {
-            KeyCode::Enter => {
-                let log = ActionHandler::update_waist(
-                    &mut self.state,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-            KeyCode::Esc => {
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {
-                self.input_handler.handle_numeric_input(key);
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_edit_strength_mobility_input_with_modifiers(
+    /// Generic handler for all field inputs - consolidates 6 separate handlers
+    async fn handle_field_input(
         &mut self,
         key: KeyCode,
-        _modifiers: crossterm::event::KeyModifiers,
+        field_type: crate::models::field_accessor::FieldType,
     ) -> Result<()> {
+        use crate::models::field_accessor::FieldType;
+
         match key {
             KeyCode::Enter => {
-                let log = ActionHandler::update_strength_mobility(
+                let log = ActionHandler::update_field(
                     &mut self.state,
+                    field_type,
                     self.input_handler.input_buffer.clone(),
                 );
                 self.input_handler.clear();
@@ -285,92 +219,17 @@ impl App {
                 self.state.current_screen = AppScreen::DailyView;
             }
             _ => {
-                self.input_handler.handle_multiline_text_input(key);
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_edit_notes_input_with_modifiers(
-        &mut self,
-        key: KeyCode,
-        _modifiers: crossterm::event::KeyModifiers,
-    ) -> Result<()> {
-        match key {
-            KeyCode::Enter => {
-                let log = ActionHandler::update_notes(
-                    &mut self.state,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-            KeyCode::Esc => {
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {
-                self.input_handler.handle_multiline_text_input(key);
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_edit_miles_input(&mut self, key: KeyCode) -> Result<()> {
-        match key {
-            KeyCode::Enter => {
-                let log = ActionHandler::update_miles(
-                    &mut self.state,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-            KeyCode::Esc => {
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {
-                self.input_handler.handle_numeric_input(key);
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_edit_elevation_input(&mut self, key: KeyCode) -> Result<()> {
-        match key {
-            KeyCode::Enter => {
-                let log = ActionHandler::update_elevation(
-                    &mut self.state,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
-            }
-            KeyCode::Esc => {
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {
-                self.input_handler.handle_integer_input(key);
+                match field_type {
+                    FieldType::Weight | FieldType::Waist | FieldType::Miles => {
+                        self.input_handler.handle_numeric_input(key);
+                    }
+                    FieldType::Elevation => {
+                        self.input_handler.handle_integer_input(key);
+                    }
+                    FieldType::StrengthMobility | FieldType::Notes => {
+                        self.input_handler.handle_multiline_text_input(key);
+                    }
+                }
             }
         }
         Ok(())
@@ -522,20 +381,19 @@ impl App {
                 if matches!(self.state.current_screen, AppScreen::Home) {
                     self.handle_delete_day_confirmation();
                 } else if matches!(self.state.current_screen, AppScreen::DailyView) {
+                    use crate::models::DeleteTarget;
                     match self.state.focused_section {
                         FocusedSection::FoodItems => {
-                            if self.state.food_list_focused {
-                                if let Some(selected_index) = self.food_list_state.selected() {
-                                    self.state.current_screen = AppScreen::ConfirmDeleteFood(selected_index);
+                            if self.state.food_list_focused
+                                && let Some(selected_index) = self.food_list_state.selected() {
+                                    self.state.current_screen = AppScreen::ConfirmDelete(DeleteTarget::Food(selected_index));
                                 }
-                            }
                         }
                         FocusedSection::Sokay => {
-                            if self.state.sokay_list_focused {
-                                if let Some(selected_index) = self.sokay_list_state.selected() {
-                                    self.state.current_screen = AppScreen::ConfirmDeleteSokay(selected_index);
+                            if self.state.sokay_list_focused
+                                && let Some(selected_index) = self.sokay_list_state.selected() {
+                                    self.state.current_screen = AppScreen::ConfirmDelete(DeleteTarget::Sokay(selected_index));
                                 }
-                            }
                         }
                         _ => {}
                     }
@@ -682,72 +540,6 @@ impl App {
                     self.input_handler.cursor_position,
                 );
             }
-            AppScreen::EditWeight => {
-                screens::render_edit_weight_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
-            AppScreen::EditWaist => {
-                screens::render_edit_waist_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
-            AppScreen::EditStrengthMobility => {
-                screens::render_edit_strength_mobility_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
-            AppScreen::EditNotes => {
-                screens::render_edit_notes_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
-            AppScreen::EditMiles => {
-                screens::render_edit_miles_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
-            AppScreen::EditElevation => {
-                screens::render_edit_elevation_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    &self.input_handler.input_buffer,
-                    self.input_handler.cursor_position,
-                );
-            }
             AppScreen::AddSokay => {
                 screens::render_add_sokay_screen(
                     f,
@@ -770,28 +562,54 @@ impl App {
                     self.input_handler.cursor_position,
                 );
             }
-            AppScreen::ConfirmDeleteDay => {
-                screens::render_confirm_delete_day_screen(f, self.state.selected_date);
+            AppScreen::InputField(field_type) => {
+                use crate::models::field_accessor::FieldType;
+                match field_type {
+                    FieldType::Weight => screens::render_edit_weight_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                    FieldType::Waist => screens::render_edit_waist_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                    FieldType::Miles => screens::render_edit_miles_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                    FieldType::Elevation => screens::render_edit_elevation_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                    FieldType::StrengthMobility => screens::render_edit_strength_mobility_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                    FieldType::Notes => screens::render_edit_notes_screen(
+                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
+                    ),
+                }
             }
-            AppScreen::ConfirmDeleteFood(food_index) => {
-                screens::render_confirm_delete_food_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    food_index,
-                );
-            }
-            AppScreen::ConfirmDeleteSokay(sokay_index) => {
-                screens::render_confirm_delete_sokay_screen(
-                    f,
-                    &self.state,
-                    &mut self.food_list_state,
-                    &mut self.sokay_list_state,
-                    &self.sync_status,
-                    sokay_index,
-                );
+            AppScreen::ConfirmDelete(target) => {
+                use crate::models::DeleteTarget;
+                match target {
+                    DeleteTarget::Day => {
+                        screens::render_confirm_delete_day_screen(f, self.state.selected_date);
+                    }
+                    DeleteTarget::Food(food_index) => {
+                        screens::render_confirm_delete_food_screen(
+                            f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                            &self.sync_status, food_index,
+                        );
+                    }
+                    DeleteTarget::Sokay(sokay_index) => {
+                        screens::render_confirm_delete_sokay_screen(
+                            f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
+                            &self.sync_status, sokay_index,
+                        );
+                    }
+                }
             }
             AppScreen::ShortcutsHelp => {
                 screens::render_shortcuts_help_screen(
@@ -899,11 +717,8 @@ impl App {
     }
 
     fn handle_enter(&mut self) {
-        match self.state.current_screen {
-            AppScreen::Home => {
-                ActionHandler::handle_home_enter(&mut self.state, self.list_state.selected());
-            }
-            _ => {}
+        if let AppScreen::Home = self.state.current_screen {
+            ActionHandler::handle_home_enter(&mut self.state, self.list_state.selected());
         }
     }
 
@@ -944,49 +759,54 @@ impl App {
             return;
         }
 
-        if let Some(selected_index) = self.food_list_state.selected() {
-            if let Some(current_name) = ActionHandler::start_edit_food(&self.state, selected_index)
+        if let Some(selected_index) = self.food_list_state.selected()
+            && let Some(current_name) = ActionHandler::start_edit_food(&self.state, selected_index)
             {
                 self.input_handler.set_input(current_name);
                 self.state.current_screen = AppScreen::EditFood(selected_index);
             }
-        }
     }
 
     fn handle_edit_weight(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_weight = ActionHandler::start_edit_weight(&self.state);
         self.input_handler.set_input(current_weight);
-        self.state.current_screen = AppScreen::EditWeight;
+        self.state.current_screen = AppScreen::InputField(FieldType::Weight);
     }
 
     fn handle_edit_waist(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_waist = ActionHandler::start_edit_waist(&self.state);
         self.input_handler.set_input(current_waist);
-        self.state.current_screen = AppScreen::EditWaist;
+        self.state.current_screen = AppScreen::InputField(FieldType::Waist);
     }
 
     fn handle_edit_strength_mobility(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_sm = ActionHandler::start_edit_strength_mobility(&self.state);
         self.input_handler.set_input(current_sm);
-        self.state.current_screen = AppScreen::EditStrengthMobility;
+        self.state.current_screen = AppScreen::InputField(FieldType::StrengthMobility);
     }
 
     fn handle_edit_notes(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_notes = ActionHandler::start_edit_notes(&self.state);
         self.input_handler.set_input(current_notes);
-        self.state.current_screen = AppScreen::EditNotes;
+        self.state.current_screen = AppScreen::InputField(FieldType::Notes);
     }
 
     fn handle_edit_miles(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_miles = ActionHandler::start_edit_miles(&self.state);
         self.input_handler.set_input(current_miles);
-        self.state.current_screen = AppScreen::EditMiles;
+        self.state.current_screen = AppScreen::InputField(FieldType::Miles);
     }
 
     fn handle_edit_elevation(&mut self) {
+        use crate::models::field_accessor::FieldType;
         let current_elevation = ActionHandler::start_edit_elevation(&self.state);
         self.input_handler.set_input(current_elevation);
-        self.state.current_screen = AppScreen::EditElevation;
+        self.state.current_screen = AppScreen::InputField(FieldType::Elevation);
     }
 
     fn handle_edit_sokay(&mut self) {
@@ -994,115 +814,100 @@ impl App {
             return;
         }
 
-        if let Some(selected_index) = self.sokay_list_state.selected() {
-            if let Some(current_text) = ActionHandler::start_edit_sokay(&self.state, selected_index)
+        if let Some(selected_index) = self.sokay_list_state.selected()
+            && let Some(current_text) = ActionHandler::start_edit_sokay(&self.state, selected_index)
             {
                 self.input_handler.set_input(current_text);
                 self.state.current_screen = AppScreen::EditSokay(selected_index);
             }
-        }
     }
 
     fn handle_delete_day_confirmation(&mut self) {
-        if let Some(selected_index) = self.list_state.selected() {
-            if selected_index < self.state.daily_logs.len() {
+        use crate::models::DeleteTarget;
+        if let Some(selected_index) = self.list_state.selected()
+            && selected_index < self.state.daily_logs.len() {
                 self.state.selected_date = self.state.daily_logs[selected_index].date;
-                self.state.current_screen = AppScreen::ConfirmDeleteDay;
+                self.state.current_screen = AppScreen::ConfirmDelete(DeleteTarget::Day);
             }
-        }
     }
 
-    async fn handle_confirm_delete_day_input(&mut self, key: KeyCode) -> Result<()> {
+    /// Generic handler for all delete confirmations - consolidates 3 separate handlers
+    async fn handle_delete_confirmation_input(
+        &mut self,
+        key: KeyCode,
+        target: crate::models::DeleteTarget,
+    ) -> Result<()> {
+        use crate::models::DeleteTarget;
+
         match key {
             KeyCode::Char('Y') => {
-                let date_to_delete = self.state.selected_date;
+                match target {
+                    DeleteTarget::Day => {
+                        let date_to_delete = self.state.selected_date;
+                        {
+                            let mut db = self.db_manager.write().await;
+                            ActionHandler::delete_daily_log(
+                                &mut self.state,
+                                &mut db,
+                                &self.file_manager,
+                                date_to_delete,
+                            )
+                            .await?;
+                        }
+                        self.state.current_screen = AppScreen::Home;
+                        self.list_state.select(None);
+                    }
+                    DeleteTarget::Food(food_index) => {
+                        if let Some(log) = ActionHandler::delete_food_entry(&mut self.state, food_index) {
+                            if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                                if current_log.food_entries.is_empty() {
+                                    self.food_list_state.select(None);
+                                } else if food_index >= current_log.food_entries.len() {
+                                    self.food_list_state.select(Some(current_log.food_entries.len() - 1));
+                                }
+                            }
+                            self.state.current_screen = AppScreen::DailyView;
 
-                {
-                    let mut db = self.db_manager.write().await;
-                    ActionHandler::delete_daily_log(
-                        &mut self.state,
-                        &mut *db,
-                        &self.file_manager,
-                        date_to_delete,
-                    )
-                    .await?;
-                }
-
-                self.state.current_screen = AppScreen::Home;
-                self.list_state.select(None);
-            }
-            KeyCode::Char('N') | KeyCode::Esc => {
-                self.state.current_screen = AppScreen::Home;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    async fn handle_confirm_delete_food_input(&mut self, key: KeyCode, food_index: usize) -> Result<()> {
-        match key {
-            KeyCode::Char('Y') => {
-                if let Some(log) = ActionHandler::delete_food_entry(
-                    &mut self.state,
-                    food_index,
-                ) {
-                    if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
-                        if current_log.food_entries.is_empty() {
-                            self.food_list_state.select(None);
-                        } else if food_index >= current_log.food_entries.len() {
-                            self.food_list_state
-                                .select(Some(current_log.food_entries.len() - 1));
+                            let db_manager = Arc::clone(&self.db_manager);
+                            let file_manager = self.file_manager.clone();
+                            tokio::spawn(async move {
+                                ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                            });
+                        } else {
+                            self.state.current_screen = AppScreen::DailyView;
                         }
                     }
+                    DeleteTarget::Sokay(sokay_index) => {
+                        if let Some(log) = ActionHandler::delete_sokay_entry(&mut self.state, sokay_index) {
+                            if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
+                                if current_log.sokay_entries.is_empty() {
+                                    self.sokay_list_state.select(None);
+                                } else if sokay_index >= current_log.sokay_entries.len() {
+                                    self.sokay_list_state.select(Some(current_log.sokay_entries.len() - 1));
+                                }
+                            }
+                            self.state.current_screen = AppScreen::DailyView;
 
-                    self.state.current_screen = AppScreen::DailyView;
-
-                    let db_manager = Arc::clone(&self.db_manager);
-                    let file_manager = self.file_manager.clone();
-                    tokio::spawn(async move {
-                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                    });
-                } else {
-                    self.state.current_screen = AppScreen::DailyView;
-                }
-            }
-            KeyCode::Char('N') | KeyCode::Esc => {
-                self.state.current_screen = AppScreen::DailyView;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    async fn handle_confirm_delete_sokay_input(&mut self, key: KeyCode, sokay_index: usize) -> Result<()> {
-        match key {
-            KeyCode::Char('Y') => {
-                if let Some(log) = ActionHandler::delete_sokay_entry(
-                    &mut self.state,
-                    sokay_index,
-                ) {
-                    if let Some(current_log) = self.state.get_daily_log(self.state.selected_date) {
-                        if current_log.sokay_entries.is_empty() {
-                            self.sokay_list_state.select(None);
-                        } else if sokay_index >= current_log.sokay_entries.len() {
-                            self.sokay_list_state
-                                .select(Some(current_log.sokay_entries.len() - 1));
+                            let db_manager = Arc::clone(&self.db_manager);
+                            let file_manager = self.file_manager.clone();
+                            tokio::spawn(async move {
+                                ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                            });
+                        } else {
+                            self.state.current_screen = AppScreen::DailyView;
                         }
                     }
-
-                    self.state.current_screen = AppScreen::DailyView;
-
-                    let db_manager = Arc::clone(&self.db_manager);
-                    let file_manager = self.file_manager.clone();
-                    tokio::spawn(async move {
-                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                    });
-                } else {
-                    self.state.current_screen = AppScreen::DailyView;
                 }
             }
             KeyCode::Char('N') | KeyCode::Esc => {
-                self.state.current_screen = AppScreen::DailyView;
+                match target {
+                    DeleteTarget::Day => {
+                        self.state.current_screen = AppScreen::Home;
+                    }
+                    DeleteTarget::Food(_) | DeleteTarget::Sokay(_) => {
+                        self.state.current_screen = AppScreen::DailyView;
+                    }
+                }
             }
             _ => {}
         }

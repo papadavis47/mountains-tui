@@ -1,6 +1,8 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+pub mod field_accessor;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DailyLog {
     pub date: NaiveDate,
@@ -83,6 +85,14 @@ pub enum FocusedSection {
     Notes,
 }
 
+/// Target for delete confirmation dialogs
+#[derive(Debug, Clone, Copy)]
+pub enum DeleteTarget {
+    Day,
+    Food(usize),
+    Sokay(usize),
+}
+
 #[derive(Debug, Clone)]
 pub enum AppScreen {
     Startup,
@@ -90,17 +100,10 @@ pub enum AppScreen {
     DailyView,
     AddFood,
     EditFood(usize),
-    EditWeight,
-    EditWaist,
-    EditMiles,
-    EditElevation,
     AddSokay,
     EditSokay(usize),
-    EditStrengthMobility,
-    EditNotes,
-    ConfirmDeleteDay,
-    ConfirmDeleteFood(usize),
-    ConfirmDeleteSokay(usize),
+    InputField(field_accessor::FieldType),
+    ConfirmDelete(DeleteTarget),
     ShortcutsHelp,
     Syncing,
 }

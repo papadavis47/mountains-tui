@@ -206,8 +206,8 @@ impl DbManager {
                 log.waist,
                 log.miles_covered,
                 log.elevation_gain,
-                log.strength_mobility.as_ref().map(|s| s.as_str()),
-                log.notes.as_ref().map(|s| s.as_str()),
+                log.strength_mobility.as_deref(),
+                log.notes.as_deref(),
             ],
         )
         .await

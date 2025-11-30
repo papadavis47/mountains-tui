@@ -16,9 +16,11 @@ As currently implemented, **Mountains** requires a Turso Cloud account and datab
 
 The Turso Cloud database will sync with the `libsql` db created in the user's home directory at `~/.mountains/`.
 
-This happens on startup and every 4 minutes while running the app.
+This happens on startup and on quit.
 
-The simplest way to install currently is to clone the repo, use the example `.env.example` to make your own `.env` file ( _which is listed in the `.gitignore` file with the repo_ ), fill in your credentials and build the application locally with:
+# Installation
+
+The simplest way to install currently is to clone the repo, use the example `.env.example` to make your own `.env` file, fill in your credentials and build the application locally with:
 
 `cargo install --path .`
 
@@ -36,6 +38,8 @@ mkdir ~/.mountains
 cp .env ~/.mountains/.env
 
 ```
+
+# Usage
 
 Run the app in the project root with:
 
@@ -58,3 +62,5 @@ I plan on updating the app as I go along.
 Also, a web version is in the works.
 
 Right now, I am simply using it for my own training and health.
+
+### Made with [ratatui](https://ratatui.rs/) :)
