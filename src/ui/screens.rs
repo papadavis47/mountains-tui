@@ -285,6 +285,29 @@ pub fn render_daily_view_screen(
         true,
         false,
     );
+
+    // Render expanded overlay for multi-line sections when focused
+    match &state.focused_section {
+        FocusedSection::StrengthMobility => {
+            render_strength_mobility_expanded(
+                f,
+                chunks[5],
+                state.selected_date,
+                &state.daily_logs,
+                state.strength_mobility_scroll,
+            );
+        }
+        FocusedSection::Notes => {
+            render_notes_expanded(
+                f,
+                chunks[6],
+                state.selected_date,
+                &state.daily_logs,
+                state.notes_scroll,
+            );
+        }
+        _ => {}
+    }
 }
 
 /// Renders the measurements display section
@@ -546,6 +569,8 @@ fn render_sokay_section(
             focused_section: FocusedSection::FoodItems,
             food_list_focused: false,
             sokay_list_focused: false,
+            strength_mobility_scroll: 0,
+            notes_scroll: 0,
         },
         selected_date,
     );
@@ -1676,6 +1701,146 @@ Press Space to close";
         .style(Style::default().fg(Color::White))
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(text, inner_area);
+}
+
+/// Calculates the number of display lines needed for text at given width
+fn calculate_text_height(text: &str, width: usize) -> usize {
+    if text.is_empty() || width == 0 {
+        return 1;
+    }
+
+    let mut total_lines = 0;
+    for line in text.lines() {
+        if line.is_empty() {
+            total_lines += 1;
+        } else {
+            let line_len = line.chars().count();
+            let wrapped_lines = (line_len + width - 1) / width;
+            total_lines += wrapped_lines.max(1);
+        }
+    }
+
+    total_lines.max(1)
+}
+
+/// Renders expanded Strength & Mobility section when focused
+fn render_strength_mobility_expanded(
+    f: &mut Frame,
+    original_area: ratatui::layout::Rect,
+    selected_date: NaiveDate,
+    daily_logs: &[DailyLog],
+    scroll_offset: u16,
+) {
+    let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    let text = if let Some(log) = log {
+        if let Some(sm) = &log.strength_mobility {
+            if sm.trim().is_empty() {
+                "No exercises recorded yet. Press 't' to add training info.".to_string()
+            } else {
+                sm.clone()
+            }
+        } else {
+            "No exercises recorded yet. Press 't' to add training info.".to_string()
+        }
+    } else {
+        "No exercises recorded yet. Press 't' to add training info.".to_string()
+    };
+
+    let default_height = 4;
+    let width = original_area.width.saturating_sub(4) as usize;
+    let content_height = calculate_text_height(&text, width);
+    let needed_height = (content_height as u16) + 2;
+
+    if needed_height <= default_height {
+        return;
+    }
+
+    let max_height = (f.area().height * 60 / 100).max(default_height);
+    let expanded_height = needed_height.min(max_height);
+
+    let expanded_area = ratatui::layout::Rect {
+        x: original_area.x,
+        y: original_area.y + original_area.height - expanded_height,
+        width: original_area.width,
+        height: expanded_height,
+    };
+
+    f.render_widget(Clear, expanded_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan))
+        .title("Strength & Mobility")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    let paragraph = Paragraph::new(text)
+        .style(Style::default().fg(Color::Cyan))
+        .block(block)
+        .wrap(ratatui::widgets::Wrap { trim: false })
+        .scroll((scroll_offset, 0));
+
+    f.render_widget(paragraph, expanded_area);
+}
+
+/// Renders expanded Notes section when focused
+fn render_notes_expanded(
+    f: &mut Frame,
+    original_area: ratatui::layout::Rect,
+    selected_date: NaiveDate,
+    daily_logs: &[DailyLog],
+    scroll_offset: u16,
+) {
+    let log = daily_logs.iter().find(|log| log.date == selected_date);
+
+    let text = if let Some(log) = log {
+        if let Some(notes) = &log.notes {
+            if notes.trim().is_empty() {
+                "No notes for this day yet. Press 'n' to add notes.".to_string()
+            } else {
+                notes.clone()
+            }
+        } else {
+            "No notes for this day yet. Press 'n' to add notes.".to_string()
+        }
+    } else {
+        "No notes for this day yet. Press 'n' to add notes.".to_string()
+    };
+
+    let default_height = 4;
+    let width = original_area.width.saturating_sub(4) as usize;
+    let content_height = calculate_text_height(&text, width);
+    let needed_height = (content_height as u16) + 2;
+
+    if needed_height <= default_height {
+        return;
+    }
+
+    let max_height = (f.area().height * 60 / 100).max(default_height);
+    let expanded_height = needed_height.min(max_height);
+
+    let expanded_area = ratatui::layout::Rect {
+        x: original_area.x,
+        y: original_area.y + original_area.height - expanded_height,
+        width: original_area.width,
+        height: expanded_height,
+    };
+
+    f.render_widget(Clear, expanded_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Green))
+        .title("Notes")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+
+    let paragraph = Paragraph::new(text)
+        .style(Style::default().fg(Color::Green))
+        .block(block)
+        .wrap(ratatui::widgets::Wrap { trim: false })
+        .scroll((scroll_offset, 0));
+
+    f.render_widget(paragraph, expanded_area);
 }
 
 /// Renders the syncing screen with a centered modal and progress gauge

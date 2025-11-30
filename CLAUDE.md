@@ -107,6 +107,27 @@ Lists start **unfocused** (no item highlighted) for quick access to adding new e
 - `D` - Delete selected item (with confirmation)
 - `Esc` - Unfocus the item (remove highlight), next Esc returns to home
 
+#### Expanded View (Strength & Mobility and Notes sections only)
+
+When you navigate to the **Strength & Mobility** or **Notes** section, the section automatically expands if needed to show the full text content.
+
+**Expansion behavior:**
+
+- Expands **vertically upward** (bottom border stays fixed, top border moves up)
+- **Overlays** sections above it (no other sections move or resize)
+- Only expands if content doesn't fit in the default 4-line height
+- Maximum expansion: **60% of screen height**
+- If content exceeds 60%, the section becomes **scrollable**
+
+**Scrolling:**
+
+- `↑/k` - Scroll up (when section is expanded and has more content)
+- `↓/j` - Scroll down (when section is expanded and has more content)
+- Scroll position **resets to top** when navigating away with Shift+J/K
+- Press `Enter` to edit (same as before)
+
+**Use case:** Easily browse longer training notes and exercise logs without squinting at the small default section. Navigate to the section with Shift+J/K, read the full content, then press Enter if you want to edit.
+
 #### Editing Data
 
 - `Enter` - Edit the focused section/field or add new entry (for Food/Sokay)
@@ -264,7 +285,20 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Simplified Sync - Startup & Shutdown Only)
+### Latest Session (Expanded View for Multi-line Sections)
+
+- ✅ **Automatic section expansion** - Strength & Mobility and Notes sections now expand vertically when focused to show full content
+- ✅ **Upward expansion overlay** - Sections expand upward (bottom stays fixed), overlaying sections above without moving them
+- ✅ **Smart expansion logic** - Only expands if content doesn't fit in default 4-line height
+- ✅ **Maximum expansion cap** - Sections expand up to 60% of screen height, then become scrollable
+- ✅ **Arrow key scrolling** - Use ↑/↓ or k/j to scroll within expanded sections when content exceeds display area
+- ✅ **Automatic scroll reset** - Scroll position resets to top when navigating away with Shift+J/K
+- ✅ **Read-only preview** - Expanded view is for reading; press Enter to edit as before
+- ✅ **State tracking** - Added `strength_mobility_scroll` and `notes_scroll` fields to AppState
+- ✅ **Helper functions** - `calculate_text_height()`, `render_strength_mobility_expanded()`, and `render_notes_expanded()`
+- ✅ **Zero compilation warnings** - Clean build with proper implementation
+
+### Previous Session (Simplified Sync - Startup & Shutdown Only)
 
 - ✅ **Removed periodic sync** - Eliminated 4-minute interval syncing for simpler, more predictable behavior
 - ✅ **Sync on quit** - App now syncs with Turso Cloud when user presses 'q' to quit

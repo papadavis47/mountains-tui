@@ -113,6 +113,8 @@ pub struct AppState {
     pub focused_section: FocusedSection,
     pub food_list_focused: bool,
     pub sokay_list_focused: bool,
+    pub strength_mobility_scroll: u16,
+    pub notes_scroll: u16,
 }
 
 impl AppState {
@@ -126,6 +128,8 @@ impl AppState {
             },
             food_list_focused: false,
             sokay_list_focused: false,
+            strength_mobility_scroll: 0,
+            notes_scroll: 0,
         }
     }
 

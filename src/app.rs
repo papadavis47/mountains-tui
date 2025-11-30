@@ -445,12 +445,18 @@ impl App {
             match key {
                 KeyCode::Char('J') => {
                     if matches!(self.state.current_screen, AppScreen::DailyView) {
+                        // Reset scroll when leaving expanded sections
+                        self.state.strength_mobility_scroll = 0;
+                        self.state.notes_scroll = 0;
                         self.state.focused_section = SectionNavigator::move_focus_down(&self.state.focused_section);
                     }
                     return Ok(());
                 }
                 KeyCode::Char('K') => {
                     if matches!(self.state.current_screen, AppScreen::DailyView) {
+                        // Reset scroll when leaving expanded sections
+                        self.state.strength_mobility_scroll = 0;
+                        self.state.notes_scroll = 0;
                         self.state.focused_section = SectionNavigator::move_focus_up(&self.state.focused_section);
                     }
                     return Ok(());
@@ -473,6 +479,12 @@ impl App {
                     match self.state.focused_section {
                         FocusedSection::FoodItems => self.move_food_selection_down(),
                         FocusedSection::Sokay => self.move_sokay_selection_down(),
+                        FocusedSection::StrengthMobility => {
+                            self.state.strength_mobility_scroll = self.state.strength_mobility_scroll.saturating_add(1);
+                        }
+                        FocusedSection::Notes => {
+                            self.state.notes_scroll = self.state.notes_scroll.saturating_add(1);
+                        }
                         _ => {}
                     }
                 } else {
@@ -484,6 +496,12 @@ impl App {
                     match self.state.focused_section {
                         FocusedSection::FoodItems => self.move_food_selection_up(),
                         FocusedSection::Sokay => self.move_sokay_selection_up(),
+                        FocusedSection::StrengthMobility => {
+                            self.state.strength_mobility_scroll = self.state.strength_mobility_scroll.saturating_sub(1);
+                        }
+                        FocusedSection::Notes => {
+                            self.state.notes_scroll = self.state.notes_scroll.saturating_sub(1);
+                        }
                         _ => {}
                     }
                 } else {
