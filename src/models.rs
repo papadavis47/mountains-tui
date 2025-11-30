@@ -102,6 +102,7 @@ pub enum AppScreen {
     ConfirmDeleteFood(usize),
     ConfirmDeleteSokay(usize),
     ShortcutsHelp,
+    Syncing,
 }
 
 #[derive(Debug)]

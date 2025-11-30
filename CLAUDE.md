@@ -16,7 +16,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Full CRUD operations** - add, edit, and delete entries for food and sokay items, plus delete entire days
 - **Cursor-enabled text input** with arrow key navigation
 - **Dual persistence** - Turso Cloud database (primary) with markdown file backups
-- **Cloud sync** - automatic background syncing with Turso Cloud
+- **Cloud sync** - syncs on startup and shutdown with visual progress indicator
 - **Clean, responsive interface** with keyboard shortcuts
 
 ## Technology Stack
@@ -45,7 +45,7 @@ The startup screen appears every time the application launches. It displays:
 
 - `N` - Go to Today's Log (creates if doesn't exist and opens DailyView)
 - `L` - Go to Log List (opens Home screen with all daily logs)
-- `q` - Quit application
+- `q` - Quit application (syncs with Turso Cloud if online)
 
 ### Home Screen
 
@@ -67,7 +67,7 @@ The home screen starts with the list **unfocused** (no item highlighted).
 #### Always available:
 
 - `S` - Go to Startup Screen
-- `q` - Quit application
+- `q` - Quit application (syncs with Turso Cloud if online)
 
 ### Daily View
 
@@ -176,6 +176,19 @@ These shortcuts allow quick data entry without navigating sections. Press **Spac
 - `Y` - Confirm deletion (uppercase Y required for safety)
 - `n` or `Esc` - Cancel deletion and return to home screen
 
+### Syncing Screen
+
+The syncing screen appears automatically when quitting the application (pressing `q`).
+
+- **Online mode:** Displays a centered modal with "Syncing with Turso Cloud..." message and a progress gauge
+- **Offline mode:** Shows "Offline - changes will sync when network is available" message
+- The screen automatically closes after sync completes (or immediately if offline)
+- Uses a visual Gauge widget to show sync progress
+- Border color changes based on status:
+  - **Cyan** - Syncing in progress
+  - **Green** - Sync complete
+  - **Orange** - Offline mode
+
 ## File Structure
 
 ```
@@ -197,7 +210,7 @@ src/
 Data storage:
 - Database: ~/.mountains/mountains.db (local libsql database)
 - Backups: ~/.mountains/mtslog-MM.DD.YYYY.md (markdown files)
-- Cloud: Synced to Turso Cloud every 4 minutes
+- Cloud: Synced to Turso Cloud on startup and shutdown
 ```
 
 ### Example Data File Format:
@@ -251,7 +264,20 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Code Comment Cleanup)
+### Latest Session (Simplified Sync - Startup & Shutdown Only)
+
+- ✅ **Removed periodic sync** - Eliminated 4-minute interval syncing for simpler, more predictable behavior
+- ✅ **Sync on quit** - App now syncs with Turso Cloud when user presses 'q' to quit
+- ✅ **Visual sync modal** - Centered modal dialog with Gauge widget shows sync progress
+- ✅ **Offline detection** - Gracefully handles offline mode with clear messaging
+- ✅ **Smart status messages** - Different messages for syncing, complete, and offline states
+- ✅ **Color-coded borders** - Cyan (syncing), Green (complete), Orange (offline)
+- ✅ **Brief display pause** - 1 second pause after sync to show completion/offline status message
+- ✅ **Startup sync retained** - Still syncs on startup via background task
+- ✅ **Cleaner event loop** - Removed periodic sync checks and timer logic
+- ✅ **Zero compilation warnings** - All changes verified with cargo check
+
+### Previous Session (Code Comment Cleanup)
 
 - ✅ **Removed verbose comments** - Cleaned up overly detailed and pedagogical comments across entire codebase
 - ✅ **Focused on "why" not "what"** - Kept only essential doc comments that explain purpose, removed obvious inline narration
@@ -556,10 +582,10 @@ Feeling strong today. Good hike in the morning.
 ## Architecture Notes
 
 - **App struct** - Main application coordinator managing state, database, and UI
-- **State management** - AppScreen enum for view routing (18 different screens including Startup)
+- **State management** - AppScreen enum for view routing (19 different screens including Startup and Syncing)
 - **Dual persistence** - libsql database (primary) + markdown files (backup)
 - **Offline-first design** - Local database initializes instantly, cloud connection deferred to background
-- **Cloud sync** - Background sync with Turso Cloud via tokio task, graceful offline handling
+- **Cloud sync** - Syncs on startup (background) and shutdown (with visual feedback), graceful offline handling
 - **Connection state tracking** - Real-time monitoring of Turso Cloud connection status
 - **Async architecture** - Fully async event loop and database operations using tokio
 - **Thread-safe database** - Arc<RwLock<DbManager>> for shared access across async tasks
@@ -580,7 +606,7 @@ Feeling strong today. Good hike in the morning.
 - **SectionNavigator** - Pure function-based navigation logic for section and field traversal
 - **InputHandler** - Cursor position tracking and input validation
 - **DbManager** - Async database operations with deferred cloud connection and state tracking
-- **ConnectionState** - Enum tracking sync status (Disconnected, Connecting, Connected, Error)
+- **ConnectionState** - Enum tracking sync status (Disconnected, Connected, Error)
 - **FileManager** - Markdown serialization/deserialization for backups
 
 # Rust coding guidelines

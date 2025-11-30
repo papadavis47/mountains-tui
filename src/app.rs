@@ -3,7 +3,7 @@ use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::CrosstermBackend, widgets::ListState};
 use std::io;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 use crate::db_manager::{ConnectionState, DbManager};
@@ -21,7 +21,6 @@ pub struct App {
     food_list_state: ListState,
     sokay_list_state: ListState,
     should_quit: bool,
-    last_sync_time: Instant,
     sync_status: String,
 }
 
@@ -69,28 +68,34 @@ impl App {
             food_list_state: ListState::default(),
             sokay_list_state: ListState::default(),
             should_quit: false,
-            last_sync_time: Instant::now(),
             sync_status: String::new(),
         })
     }
 
-    /// Main event loop with 1-second timeout for periodic sync checks
+    /// Main event loop
     pub async fn run(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> Result<()> {
         loop {
             self.update_sync_status().await;
+
+            // Handle syncing screen
+            if matches!(self.state.current_screen, AppScreen::Syncing) {
+                terminal.draw(|f| self.ui(f))?;
+                self.perform_shutdown_sync().await;
+                terminal.draw(|f| self.ui(f))?;
+                std::thread::sleep(Duration::from_millis(1000));
+            }
+
             terminal.draw(|f| self.ui(f))?;
 
-            if crossterm::event::poll(Duration::from_secs(1))? {
+            if crossterm::event::poll(Duration::from_millis(100))? {
                 if let Event::Key(key) = crossterm::event::read()? {
                     self.handle_key_event_with_modifiers(key.code, key.modifiers)
                         .await?;
                 }
             }
-
-            self.check_and_sync().await?;
 
             if self.should_quit {
                 break;
@@ -456,7 +461,7 @@ impl App {
 
         match key {
             KeyCode::Char('q') => {
-                self.should_quit = true;
+                self.state.current_screen = AppScreen::Syncing;
             }
             KeyCode::Tab => {
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
@@ -779,6 +784,9 @@ impl App {
                     &self.sync_status,
                 );
             }
+            AppScreen::Syncing => {
+                screens::render_syncing_screen(f, &self.sync_status);
+            }
         }
     }
 
@@ -1083,43 +1091,6 @@ impl App {
         Ok(())
     }
 
-    /// Syncs every 4 minutes unless user is typing
-    async fn check_and_sync(&mut self) -> Result<()> {
-        const SYNC_INTERVAL: Duration = Duration::from_secs(240);
-
-        if self.last_sync_time.elapsed() < SYNC_INTERVAL {
-            return Ok(());
-        }
-
-        if self.is_user_typing() {
-            return Ok(());
-        }
-
-        {
-            let db = self.db_manager.read().await;
-            db.sync_now().await?;
-        }
-
-        self.last_sync_time = Instant::now();
-        Ok(())
-    }
-
-    fn is_user_typing(&self) -> bool {
-        matches!(
-            self.state.current_screen,
-            AppScreen::AddFood
-                | AppScreen::EditFood(_)
-                | AppScreen::EditWeight
-                | AppScreen::EditWaist
-                | AppScreen::EditMiles
-                | AppScreen::EditElevation
-                | AppScreen::AddSokay
-                | AppScreen::EditSokay(_)
-                | AppScreen::EditStrengthMobility
-                | AppScreen::EditNotes
-        )
-    }
-
     async fn update_sync_status(&mut self) {
         let db = self.db_manager.read().await;
         let state = db.get_connection_state().await;
@@ -1129,5 +1100,33 @@ impl App {
             ConnectionState::Connected => "✓ Synced".to_string(),
             ConnectionState::Error(_) => "⚠️ Sync Error".to_string(),
         };
+    }
+
+    /// Performs shutdown sync and updates sync_status with result
+    pub async fn perform_shutdown_sync(&mut self) {
+        let db = self.db_manager.read().await;
+        let connection_state = db.get_connection_state().await;
+
+        match connection_state {
+            ConnectionState::Connected => {
+                self.sync_status = "Syncing with Turso Cloud...".to_string();
+                drop(db);
+
+                let db = self.db_manager.read().await;
+                match db.sync_now().await {
+                    Ok(_) => {
+                        self.sync_status = "Sync complete!".to_string();
+                    }
+                    Err(_) => {
+                        self.sync_status = "Offline - changes will sync when network is available".to_string();
+                    }
+                }
+            }
+            _ => {
+                self.sync_status = "Offline - changes will sync when network is available".to_string();
+            }
+        }
+
+        self.should_quit = true;
     }
 }
