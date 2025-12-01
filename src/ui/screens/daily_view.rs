@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
+use crate::miles_stats::calculate_yearly_miles;
 use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::{create_highlight_style, render_help, render_title};
 
@@ -47,12 +48,14 @@ pub fn render_daily_view_screen(
         &state.focused_section,
     );
 
+    let yearly_miles = calculate_yearly_miles(&state.daily_logs);
     render_running_section(
         f,
         chunks[2],
         state.selected_date,
         &state.daily_logs,
         &state.focused_section,
+        yearly_miles,
     );
 
     render_food_list_section(
@@ -205,6 +208,7 @@ fn render_running_section(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
+    yearly_miles: f32,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -212,6 +216,9 @@ fn render_running_section(
         FocusedSection::Running { focused_field } => (true, Some(focused_field)),
         _ => (false, None),
     };
+
+    let current_year = chrono::Local::now().year();
+    let yearly_text = format!("You have {:.1} miles covered for {}", yearly_miles, current_year);
 
     let running_text = if let Some(log) = log {
         let miles_str = if let Some(miles) = log.miles_covered {
@@ -236,7 +243,7 @@ fn render_running_section(
             elevation_str
         };
 
-        format!("{} | {}", miles_display, elevation_display)
+        format!("{} | {} | {}", miles_display, elevation_display, yearly_text)
     } else {
         let miles_str = "Miles: Not set".to_string();
         let elevation_str = "Elevation: Not set".to_string();
@@ -252,7 +259,7 @@ fn render_running_section(
             elevation_str
         };
 
-        format!("{} | {}", miles_display, elevation_display)
+        format!("{} | {} | {}", miles_display, elevation_display, yearly_text)
     };
 
     let border_style = if has_focus {

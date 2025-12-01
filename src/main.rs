@@ -4,6 +4,7 @@ mod db_manager;
 mod elevation_stats;
 mod events;
 mod file_manager;
+mod miles_stats;
 mod models;
 mod ui;
 

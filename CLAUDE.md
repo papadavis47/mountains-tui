@@ -9,7 +9,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Startup screen** - ASCII art logo with elevation statistics (monthly 1000+ days, yearly total, active streaks)
 - **Daily food logging** with date navigation
 - **Body measurements** - weight and waist size tracking
-- **Activity tracking** - miles covered (walking/hiking/running) and elevation gain
+- **Activity tracking** - miles covered (walking/hiking/running) and elevation gain with yearly miles total
 - **Sokay tracking** - accountability for unhealthy food choices with cumulative counting
 - **Strength & mobility tracking** - multi-line text field for logging exercises
 - **Daily notes** for observations and reflections
@@ -219,6 +219,7 @@ src/
 ├── models.rs            # Data structures (FoodEntry, DailyLog, AppState, AppScreen)
 ├── assets.rs            # ASCII art and UI constants
 ├── elevation_stats.rs   # Elevation statistics calculations
+├── miles_stats.rs       # Miles statistics calculations
 ├── db_manager.rs        # Database operations with Turso Cloud sync
 ├── file_manager.rs      # Markdown file I/O for backups
 ├── events/
@@ -285,7 +286,19 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Expanded View for Multi-line Sections)
+### Latest Session (Yearly Miles Tracking)
+
+- ✅ **Yearly miles total** - Running section now displays cumulative miles for the current calendar year
+- ✅ **Dynamic year display** - Shows current year (e.g., "You have 40.1 miles covered for 2025")
+- ✅ **Automatic reset** - Total resets to 0 at the beginning of each new year
+- ✅ **Real-time updates** - Yearly total updates immediately when daily miles are entered
+- ✅ **Separate module** - Created dedicated `miles_stats.rs` module for maintainability
+- ✅ **Comprehensive tests** - Full test coverage for yearly miles calculation
+- ✅ **Red styling** - Yearly total uses same red color as Miles and Elevation display
+- ✅ **Clean integration** - Fits naturally alongside existing Miles and Elevation fields
+- ✅ **Zero compilation warnings** - Clean build with proper implementation
+
+### Previous Session (Expanded View for Multi-line Sections)
 
 - ✅ **Automatic section expansion** - Strength & Mobility and Notes sections now expand vertically when focused to show full content
 - ✅ **Upward expansion overlay** - Sections expand upward (bottom stays fixed), overlaying sections above without moving them
