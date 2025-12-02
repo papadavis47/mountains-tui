@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
-use crate::miles_stats::calculate_yearly_miles;
+use crate::miles_stats::{calculate_yearly_miles, calculate_monthly_miles};
 use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::{create_highlight_style, render_help, render_title};
 
@@ -49,6 +49,7 @@ pub fn render_daily_view_screen(
     );
 
     let yearly_miles = calculate_yearly_miles(&state.daily_logs);
+    let monthly_miles = calculate_monthly_miles(&state.daily_logs);
     render_running_section(
         f,
         chunks[2],
@@ -56,6 +57,7 @@ pub fn render_daily_view_screen(
         &state.daily_logs,
         &state.focused_section,
         yearly_miles,
+        monthly_miles,
     );
 
     render_food_list_section(
@@ -209,6 +211,7 @@ fn render_running_section(
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
     yearly_miles: f32,
+    monthly_miles: f32,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -217,8 +220,32 @@ fn render_running_section(
         _ => (false, None),
     };
 
-    let current_year = chrono::Local::now().year();
+    let now = chrono::Local::now();
+    let current_year = now.year();
+    let current_month = now.month();
+
+    let month_name = match current_month {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => "Unknown",
+    };
+
     let yearly_text = format!("You have {:.1} miles covered for {}", yearly_miles, current_year);
+    let monthly_text = if monthly_miles == 0.0 {
+        format!("No miles covered yet for the month of {}", month_name)
+    } else {
+        format!("{:.1} miles covered for the month of {}", monthly_miles, month_name)
+    };
 
     let running_text = if let Some(log) = log {
         let miles_str = if let Some(miles) = log.miles_covered {
@@ -243,7 +270,7 @@ fn render_running_section(
             elevation_str
         };
 
-        format!("{} | {} | {}", miles_display, elevation_display, yearly_text)
+        format!("{} | {} | {} | {}", miles_display, elevation_display, yearly_text, monthly_text)
     } else {
         let miles_str = "Miles: Not set".to_string();
         let elevation_str = "Elevation: Not set".to_string();
@@ -259,7 +286,7 @@ fn render_running_section(
             elevation_str
         };
 
-        format!("{} | {} | {}", miles_display, elevation_display, yearly_text)
+        format!("{} | {} | {} | {}", miles_display, elevation_display, yearly_text, monthly_text)
     };
 
     let border_style = if has_focus {

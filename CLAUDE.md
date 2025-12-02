@@ -9,7 +9,7 @@ This is a TUI (Terminal User Interface) application for tracking daily training 
 - **Startup screen** - ASCII art logo with elevation statistics (monthly 1000+ days, yearly total, active streaks)
 - **Daily food logging** with date navigation
 - **Body measurements** - weight and waist size tracking
-- **Activity tracking** - miles covered (walking/hiking/running) and elevation gain with yearly miles total
+- **Activity tracking** - miles covered (walking/hiking/running) and elevation gain with yearly and monthly miles totals
 - **Sokay tracking** - accountability for unhealthy food choices with cumulative counting
 - **Strength & mobility tracking** - multi-line text field for logging exercises
 - **Daily notes** for observations and reflections
@@ -286,7 +286,21 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Yearly Miles Tracking)
+### Latest Session (Monthly Miles Tracking)
+
+- ✅ **Monthly miles total** - Running section now displays cumulative miles for the current calendar month
+- ✅ **Dynamic month display** - Shows current month name (e.g., "25.0 miles covered for the month of December")
+- ✅ **Smart zero-state messaging** - Displays "No miles covered yet for the month of December" when monthly total is 0.0
+- ✅ **Automatic reset** - Total resets to 0 at the beginning of each new month
+- ✅ **Real-time updates** - Monthly total updates immediately when daily miles are entered
+- ✅ **Added to miles_stats module** - Extended existing module with `calculate_monthly_miles()` function
+- ✅ **Comprehensive tests** - Full test coverage for monthly miles calculation (6 tests)
+- ✅ **Pipe-separated display** - Monthly total appears after yearly total: "Miles | Elevation | Yearly | Monthly"
+- ✅ **Red styling** - Monthly total uses same red color as other Running section data
+- ✅ **Clean integration** - Fits naturally alongside Miles, Elevation, and Yearly totals
+- ✅ **Zero compilation warnings** - Clean build with proper implementation
+
+### Previous Session (Yearly Miles Tracking)
 
 - ✅ **Yearly miles total** - Running section now displays cumulative miles for the current calendar year
 - ✅ **Dynamic year display** - Shows current year (e.g., "You have 40.1 miles covered for 2025")
