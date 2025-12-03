@@ -116,7 +116,7 @@ impl App {
                 self.handle_edit_sokay_input(key, sokay_index).await?
             }
             AppScreen::InputField(field_type) => {
-                self.handle_field_input(key, field_type).await?;
+                self.handle_field_input(key, modifiers, field_type).await?;
             }
             AppScreen::ConfirmDelete(target) => {
                 self.handle_delete_confirmation_input(key, target).await?;
@@ -194,25 +194,37 @@ impl App {
     async fn handle_field_input(
         &mut self,
         key: KeyCode,
+        modifiers: crossterm::event::KeyModifiers,
         field_type: crate::models::field_accessor::FieldType,
     ) -> Result<()> {
         use crate::models::field_accessor::FieldType;
 
         match key {
             KeyCode::Enter => {
-                let log = ActionHandler::update_field(
-                    &mut self.state,
-                    field_type,
-                    self.input_handler.input_buffer.clone(),
-                );
-                self.input_handler.clear();
-                self.state.current_screen = AppScreen::DailyView;
+                let is_multiline = matches!(field_type, FieldType::StrengthMobility | FieldType::Notes);
+                // Use Alt modifier for newline insertion (most reliable across terminals)
+                let has_alt = modifiers.contains(crossterm::event::KeyModifiers::ALT);
 
-                let db_manager = Arc::clone(&self.db_manager);
-                let file_manager = self.file_manager.clone();
-                tokio::spawn(async move {
-                    ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
-                });
+                // Alt+Enter in multiline inputs inserts newline, regular Enter saves
+                if is_multiline && has_alt {
+                    // Insert newline and stay in edit mode
+                    self.input_handler.insert_newline();
+                } else {
+                    // Save and exit
+                    let log = ActionHandler::update_field(
+                        &mut self.state,
+                        field_type,
+                        self.input_handler.input_buffer.clone(),
+                    );
+                    self.input_handler.clear();
+                    self.state.current_screen = AppScreen::DailyView;
+
+                    let db_manager = Arc::clone(&self.db_manager);
+                    let file_manager = self.file_manager.clone();
+                    tokio::spawn(async move {
+                        ActionHandler::persist_daily_log(db_manager, &file_manager, log).await;
+                    });
+                }
             }
             KeyCode::Esc => {
                 self.input_handler.clear();
@@ -227,7 +239,7 @@ impl App {
                         self.input_handler.handle_integer_input(key);
                     }
                     FieldType::StrengthMobility | FieldType::Notes => {
-                        self.input_handler.handle_multiline_text_input(key);
+                        self.input_handler.handle_multiline_text_input(key, modifiers);
                     }
                 }
             }

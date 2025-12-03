@@ -39,6 +39,7 @@ Nutrition:
 Training:
   t - Edit strength & mobility
   n - Edit daily notes
+  Alt+Enter - Insert newline (in multiline fields)
 
 Press Space to close";
 

@@ -178,17 +178,19 @@ These shortcuts allow quick data entry without navigating sections. Press **Spac
 
 ### Edit Strength & Mobility Screen
 
-- **Multi-line text input** with cursor support
+- **Multi-line text input** with cursor support and newline insertion
 - `←/→/↑/↓` - Move cursor
-- `Home/End` - Jump to beginning/end of line
+- `Home/End` - Jump to beginning/end of entire text
+- `Alt+Enter` - Insert newline (hard line break, max 200 lines)
 - `Enter` - Save exercises
 - `Esc` - Cancel and return
 
 ### Edit Notes Screen
 
-- **Multi-line text input** with cursor support
+- **Multi-line text input** with cursor support and newline insertion
 - `←/→/↑/↓` - Move cursor
-- `Home/End` - Jump to beginning/end of line
+- `Home/End` - Jump to beginning/end of entire text
+- `Alt+Enter` - Insert newline (hard line break, max 200 lines)
 - `Enter` - Save notes
 - `Esc` - Cancel and return
 
@@ -286,7 +288,23 @@ Feeling strong today. Good hike in the morning.
 
 ## Recent Improvements
 
-### Latest Session (Monthly Miles Tracking)
+### Latest Session (Alt+Enter Newline Insertion)
+
+- ✅ **Newline insertion** - Alt+Enter now inserts hard line breaks in multi-line text inputs
+- ✅ **Applied to both editors** - Works in Strength & Mobility and Notes sections
+- ✅ **200 line maximum** - Prevents excessive line creation while allowing extensive notes
+- ✅ **Natural display** - Newlines appear as line breaks naturally without special indicators
+- ✅ **Full persistence** - Newlines saved to database and preserved in markdown backups
+- ✅ **Cursor positioning** - Cursor moves to beginning of next line after Alt+Enter
+- ✅ **Existing navigation preserved** - Up/Down arrows already worked with newlines
+- ✅ **Word wrapping maintained** - Automatic word wrapping continues alongside hard line breaks
+- ✅ **Enter key unchanged** - Regular Enter still saves and exits as before
+- ✅ **Terminal compatibility** - Alt+Enter chosen for reliable detection across different terminals
+- ✅ **Shortcuts modal updated** - Alt+Enter help text added to Training section
+- ✅ **Dead code cleanup** - Removed debug logging and unused Shift+Enter handler code
+- ✅ **Zero compilation warnings** - Clean build with all tests passing
+
+### Previous Session (Monthly Miles Tracking)
 
 - ✅ **Monthly miles total** - Running section now displays cumulative miles for the current calendar month
 - ✅ **Dynamic month display** - Shows current month name (e.g., "25.0 miles covered for the month of December")

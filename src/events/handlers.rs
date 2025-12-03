@@ -4,7 +4,7 @@ use crate::models::{
     field_accessor::FieldType, AppScreen, AppState, DailyLog, FocusedSection, FoodEntry,
     MeasurementField, RunningField,
 };
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -73,6 +73,15 @@ impl InputHandler {
 
     pub fn move_cursor_end(&mut self) {
         self.cursor_position = self.input_buffer.len();
+    }
+
+    pub fn insert_newline(&mut self) -> bool {
+        let current_line_count = self.input_buffer.chars().filter(|&c| c == '\n').count() + 1;
+        if current_line_count >= 200 {
+            return false;
+        }
+        self.insert_char('\n');
+        true
     }
 
     pub fn handle_text_input(&mut self, key: KeyCode) -> bool {
@@ -181,7 +190,7 @@ impl InputHandler {
         }
     }
 
-    pub fn handle_multiline_text_input(&mut self, key: KeyCode) -> bool {
+    pub fn handle_multiline_text_input(&mut self, key: KeyCode, _modifiers: KeyModifiers) -> bool {
         match key {
             KeyCode::Char(c) => {
                 self.insert_char(c);

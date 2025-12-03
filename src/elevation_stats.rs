@@ -50,14 +50,13 @@ pub fn calculate_current_streak(logs: &[DailyLog]) -> Option<usize> {
     let mut streak_count = 0;
     let mut current_date = most_recent_date;
 
-    loop {
-        if let Some(log) = sorted_logs.iter().find(|log| log.date == current_date) {
-            if log.elevation_gain.unwrap_or(0) >= ELEVATION_THRESHOLD {
-                streak_count += 1;
-                current_date = current_date.pred_opt()?;
-            } else {
-                break;
-            }
+    while let Some(log) = sorted_logs.iter().find(|log| log.date == current_date) {
+        if log.elevation_gain.unwrap_or(0) >= ELEVATION_THRESHOLD {
+            streak_count += 1;
+            current_date = match current_date.pred_opt() {
+                Some(date) => date,
+                None => break,
+            };
         } else {
             break;
         }

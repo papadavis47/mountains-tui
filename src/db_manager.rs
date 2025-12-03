@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use libsql::{Builder, Connection, Database};
-use std::env;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -22,7 +21,7 @@ pub struct DbManager {
 }
 
 impl DbManager {
-    pub async fn new_local_first(data_dir: &PathBuf) -> Result<Self> {
+    pub async fn new_local_first(data_dir: &Path) -> Result<Self> {
         // Get local database path
         let db_path = data_dir.join("mountains.db");
         let db_path_str = db_path
@@ -34,15 +33,8 @@ impl DbManager {
         let db = Builder::new_local(&db_path_str).build().await?;
         let conn = db.connect()?;
 
-        // Check if we have credentials for cloud sync (will be handled in background)
-        let has_credentials =
-            env::var("TURSO_DATABASE_URL").is_ok() && env::var("TURSO_AUTH_TOKEN").is_ok();
-
-        let state = if has_credentials {
-            ConnectionState::Disconnected // Will upgrade in background
-        } else {
-            ConnectionState::Disconnected // No credentials available
-        };
+        // Start disconnected - will upgrade to cloud replica in background if credentials available
+        let state = ConnectionState::Disconnected;
 
         let mut manager = Self {
             db,
