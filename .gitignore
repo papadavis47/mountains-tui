@@ -23,3 +23,6 @@ Thumbs.db
 
 # For notes
 chalk_board.md
+
+# Project-specific Claude instructions (keep local only)
+.claude/CLAUDE.md
