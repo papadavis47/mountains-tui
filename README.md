@@ -8,59 +8,43 @@
 
 ![Title on Startup](./images/title-startup-screen.png)
 
-This is a terminal user interface training log I made for myself - to get lighter and to train with more awareness for trail running. It grew out of my desire to improve my ability to go faster uphill and run on trails for many miles.
+A TUI training log for trail running and food awareness. Tracks daily nutrition, body measurements, miles, elevation gain, strength & mobility work, and notes.
 
-**Mountains** can also help with food awareness - **initially my main motivation to create this software**.
-
-As currently implemented, **Mountains** requires a Turso Cloud account and database.
-
-The Turso Cloud database will sync with the `libsql` db created in the user's home directory at `~/.mountains/`.
-
-This happens on startup and on quit.
+Works offline-first with a local `libsql` database at `~/.mountains/`. Optional Turso Cloud sync can be configured from within the app (press `c` on the startup screen).
 
 # Installation
 
-The simplest way to install currently is to clone the repo, use the example `.env.example` to make your own `.env` file, fill in your credentials and build the application locally with:
-
-`cargo install --path .`
-
-Then create a `.mountains` directory in `$HOME`.
-
-Or run the program for the first time and the directory will be created.
-
-In order to use the app anywhere on the user's system post install - the program requires a `.env` file in `~/.mountains/` for Turso Cloud.
-
-Ater cloning the project and entering credentials into a `.env` file in the project repository, do the following:
+Clone the repo and install locally:
 
 ```shell
-
-mkdir ~/.mountains
-cp .env ~/.mountains/.env
-
+cargo install --path .
 ```
+
+The `~/.mountains/` directory is created automatically on first run.
+
+# Cloud Sync (Optional)
+
+Cloud sync with Turso is opt-in. Configure it from the startup screen (`c`) or edit `~/.mountains/config.toml` directly:
+
+```toml
+[sync]
+enabled = true
+db_url = "libsql://your-db.turso.io"
+auth_token = "your-token"
+```
+
+Syncs on startup (background) and on quit.
 
 # Usage
 
-Run the app in the project root with:
-
 ```shell
-
 cargo run
-
 ```
 
-Or after installing locally with `cargo`:
+Or after installing:
 
 ```shell
-
 mountains
-
 ```
-
-I plan on updating the app as I go along.
-
-Also, a web version is in the works.
-
-Right now, I am simply using it for my own training and health.
 
 ### Made with [ratatui](https://ratatui.rs/) :)

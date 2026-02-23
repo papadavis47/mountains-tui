@@ -4,6 +4,7 @@ pub mod daily_view;
 pub mod inputs;
 pub mod confirmations;
 pub mod help;
+pub mod config_sync;
 
 // Re-export all public functions for backward compatibility
 pub use startup::render_startup_screen;
@@ -33,3 +34,4 @@ pub use help::{
     render_shortcuts_help_screen,
     render_syncing_screen,
 };
+pub use config_sync::render_config_sync_screen;

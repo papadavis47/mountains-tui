@@ -384,6 +384,8 @@ fn render_sokay_section(
             strength_mobility_scroll: 0,
             notes_scroll: 0,
             date_input_error: None,
+            config_sync_focused_field: crate::models::ConfigSyncField::DbUrl,
+            config_sync_status: None,
         },
         selected_date,
     );

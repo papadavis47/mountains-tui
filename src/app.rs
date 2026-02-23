@@ -6,14 +6,16 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
+use crate::config::AppConfig;
 use crate::db_manager::{ConnectionState, DbManager};
 use crate::events::handlers::{ActionHandler, InputHandler, NavigationHandler, SectionNavigator};
 use crate::file_manager::FileManager;
-use crate::models::{AppScreen, AppState, FocusedSection, MeasurementField, RunningField};
+use crate::models::{AppScreen, AppState, ConfigSyncField, FocusedSection, MeasurementField, RunningField};
 use crate::ui::screens;
 
 pub struct App {
     state: AppState,
+    config: AppConfig,
     db_manager: Arc<RwLock<DbManager>>,
     file_manager: FileManager,
     input_handler: InputHandler,
@@ -22,11 +24,14 @@ pub struct App {
     sokay_list_state: ListState,
     should_quit: bool,
     sync_status: String,
+    config_url_buffer: String,
+    config_token_buffer: String,
+    config_sync_enabled: bool,
 }
 
 impl App {
-    /// Creates app with instant startup, spawns background task for cloud sync
-    pub async fn new() -> Result<Self> {
+    /// Creates app with instant startup, spawns background cloud sync if configured
+    pub async fn new(config: AppConfig) -> Result<Self> {
         let home_dir = dirs::home_dir().context("Could not find home directory")?;
         let mountains_dir = home_dir.join(".mountains");
 
@@ -43,24 +48,24 @@ impl App {
 
         let db_manager = Arc::new(RwLock::new(db_manager));
 
-        // Spawn background task for cloud sync to avoid blocking startup
-        let db_manager_clone = Arc::clone(&db_manager);
-        let mountains_dir_clone = mountains_dir.clone();
-        tokio::spawn(async move {
-            if let (Ok(url), Ok(token)) = (
-                std::env::var("TURSO_DATABASE_URL"),
-                std::env::var("TURSO_AUTH_TOKEN"),
-            ) {
+        // Spawn background cloud sync only if config has valid credentials
+        if config.sync.is_configured() {
+            let db_manager_clone = Arc::clone(&db_manager);
+            let mountains_dir_clone = mountains_dir.clone();
+            let url = config.sync.db_url.clone();
+            let token = config.sync.auth_token.clone();
+            tokio::spawn(async move {
                 let db_path = mountains_dir_clone.join("mountains.db");
                 if let Some(db_path_str) = db_path.to_str() {
                     let mut db = db_manager_clone.write().await;
                     let _ = db.upgrade_to_remote_replica(db_path_str, url, token).await;
                 }
-            }
-        });
+            });
+        }
 
         Ok(Self {
             state,
+            config,
             db_manager,
             file_manager,
             input_handler: InputHandler::new(),
@@ -69,6 +74,9 @@ impl App {
             sokay_list_state: ListState::default(),
             should_quit: false,
             sync_status: String::new(),
+            config_url_buffer: String::new(),
+            config_token_buffer: String::new(),
+            config_sync_enabled: false,
         })
     }
 
@@ -122,6 +130,7 @@ impl App {
                 self.handle_delete_confirmation_input(key, target).await?;
             }
             AppScreen::DateInput => self.handle_date_input(key).await?,
+            AppScreen::ConfigSync => self.handle_config_sync_input(key).await?,
             _ => self.handle_navigation_input(key, modifiers).await?,
         }
         Ok(())
@@ -506,6 +515,8 @@ impl App {
             KeyCode::Char('c') => {
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.state.current_screen = AppScreen::AddSokay;
+                } else if matches!(self.state.current_screen, AppScreen::Startup) {
+                    self.open_config_sync();
                 }
             }
             KeyCode::Char('S') => {
@@ -528,6 +539,113 @@ impl App {
                 }
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn open_config_sync(&mut self) {
+        self.config_url_buffer = self.config.sync.db_url.clone();
+        self.config_token_buffer = String::new();
+        self.config_sync_enabled = self.config.sync.enabled;
+        self.state.config_sync_focused_field = ConfigSyncField::DbUrl;
+        self.state.config_sync_status = None;
+        self.input_handler.set_input(self.config.sync.db_url.clone());
+        self.state.current_screen = AppScreen::ConfigSync;
+    }
+
+    async fn handle_config_sync_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Tab => {
+                // Save current field buffer before switching
+                match self.state.config_sync_focused_field {
+                    ConfigSyncField::DbUrl => {
+                        self.config_url_buffer = self.input_handler.input_buffer.clone();
+                        self.state.config_sync_focused_field = ConfigSyncField::AuthToken;
+                        self.input_handler.set_input(self.config_token_buffer.clone());
+                    }
+                    ConfigSyncField::AuthToken => {
+                        self.config_token_buffer = self.input_handler.input_buffer.clone();
+                        self.state.config_sync_focused_field = ConfigSyncField::EnableToggle;
+                        self.input_handler.clear();
+                    }
+                    ConfigSyncField::EnableToggle => {
+                        self.state.config_sync_focused_field = ConfigSyncField::DbUrl;
+                        self.input_handler.set_input(self.config_url_buffer.clone());
+                    }
+                }
+            }
+            KeyCode::Enter => {
+                // Save current field buffer
+                match self.state.config_sync_focused_field {
+                    ConfigSyncField::DbUrl => {
+                        self.config_url_buffer = self.input_handler.input_buffer.clone();
+                    }
+                    ConfigSyncField::AuthToken => {
+                        self.config_token_buffer = self.input_handler.input_buffer.clone();
+                    }
+                    ConfigSyncField::EnableToggle => {}
+                }
+
+                // Build updated config
+                let token = if self.config_token_buffer.is_empty() {
+                    self.config.sync.auth_token.clone()
+                } else {
+                    self.config_token_buffer.clone()
+                };
+
+                self.config.sync.db_url = self.config_url_buffer.clone();
+                self.config.sync.auth_token = token;
+                self.config.sync.enabled = self.config_sync_enabled;
+
+                match self.config.save() {
+                    Ok(()) => {
+                        self.state.config_sync_status = Some("Saved!".to_string());
+                    }
+                    Err(e) => {
+                        self.state.config_sync_status =
+                            Some(format!("Error: {}", e));
+                        return Ok(());
+                    }
+                }
+
+                // If newly configured, spawn background cloud connection
+                if self.config.sync.is_configured() {
+                    let db_manager_clone = Arc::clone(&self.db_manager);
+                    let home_dir = dirs::home_dir().context("Could not find home directory")?;
+                    let mountains_dir = home_dir.join(".mountains");
+                    let url = self.config.sync.db_url.clone();
+                    let token = self.config.sync.auth_token.clone();
+                    tokio::spawn(async move {
+                        let db_path = mountains_dir.join("mountains.db");
+                        if let Some(db_path_str) = db_path.to_str() {
+                            let mut db = db_manager_clone.write().await;
+                            let _ = db
+                                .upgrade_to_remote_replica(db_path_str, url, token)
+                                .await;
+                        }
+                    });
+                }
+
+                self.input_handler.clear();
+                self.state.current_screen = AppScreen::Startup;
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.config_sync_status = None;
+                self.state.current_screen = AppScreen::Startup;
+            }
+            _ => {
+                match self.state.config_sync_focused_field {
+                    ConfigSyncField::DbUrl | ConfigSyncField::AuthToken => {
+                        self.input_handler.handle_text_input(key);
+                    }
+                    ConfigSyncField::EnableToggle => {
+                        if matches!(key, KeyCode::Char(' ')) {
+                            self.config_sync_enabled = !self.config_sync_enabled;
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -683,6 +801,16 @@ impl App {
                     &mut self.food_list_state,
                     &mut self.sokay_list_state,
                     &self.sync_status,
+                );
+            }
+            AppScreen::ConfigSync => {
+                screens::render_config_sync_screen(
+                    f,
+                    &self.state,
+                    &self.config_url_buffer,
+                    &self.config_token_buffer,
+                    self.config_sync_enabled,
+                    !self.config.sync.auth_token.is_empty(),
                 );
             }
             AppScreen::Syncing => {

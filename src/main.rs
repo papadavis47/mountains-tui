@@ -1,5 +1,6 @@
 mod app;
 mod assets;
+mod config;
 mod db_manager;
 mod elevation_stats;
 mod events;
@@ -21,7 +22,14 @@ use crate::app::App;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    load_env_from_data_dir();
+    let home_dir = dirs::home_dir().expect("Could not find home directory");
+    let data_dir = home_dir.join(".mountains");
+
+    // One-time migration from .env to config.toml
+    config::migrate_from_env(&data_dir).ok();
+
+    let app_config = config::AppConfig::load()?;
+
     setup_terminal()?;
 
     let backend = CrosstermBackend::new(io::stdout());
@@ -29,25 +37,12 @@ async fn main() -> Result<()> {
 
     // Separate scope ensures app is dropped before terminal cleanup
     let result = {
-        let mut app = App::new().await?;
+        let mut app = App::new(app_config).await?;
         app.run(&mut terminal).await
     };
 
     cleanup_terminal(&mut terminal)?;
     result
-}
-
-/// Loads .env from data directory first, falls back to current directory for development
-fn load_env_from_data_dir() {
-    if let Some(home_dir) = dirs::home_dir() {
-        let data_dir = home_dir.join(".mountains");
-        let env_file = data_dir.join(".env");
-
-        if env_file.exists() {
-            dotenvy::from_path(&env_file).ok();
-        }
-    }
-    dotenvy::dotenv().ok();
 }
 
 /// Enables raw mode and alternate screen for TUI

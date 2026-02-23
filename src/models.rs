@@ -107,6 +107,14 @@ pub enum AppScreen {
     ShortcutsHelp,
     DateInput,
     Syncing,
+    ConfigSync,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConfigSyncField {
+    DbUrl,
+    AuthToken,
+    EnableToggle,
 }
 
 #[derive(Debug)]
@@ -120,6 +128,8 @@ pub struct AppState {
     pub strength_mobility_scroll: u16,
     pub notes_scroll: u16,
     pub date_input_error: Option<String>,
+    pub config_sync_focused_field: ConfigSyncField,
+    pub config_sync_status: Option<String>,
 }
 
 impl AppState {
@@ -136,6 +146,8 @@ impl AppState {
             strength_mobility_scroll: 0,
             notes_scroll: 0,
             date_input_error: None,
+            config_sync_focused_field: ConfigSyncField::DbUrl,
+            config_sync_status: None,
         }
     }
 
