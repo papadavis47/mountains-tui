@@ -92,5 +92,5 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
     f.render_widget(content, chunks[1]);
 
     // Render help text without border for clean appearance, centered horizontally
-    render_help(f, chunks[2], " N: Today's Log | L: Log List | q: Quit ", false, true);
+    render_help(f, chunks[2], " n: Today's Log | l: Log List | q: Quit ", false, true);
 }

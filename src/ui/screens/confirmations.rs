@@ -25,7 +25,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         - Strength & mobility exercises\n\
         - Daily notes\n\n\
         This action cannot be undone.\n\n\
-        Type 'Y' to confirm deletion or 'N' to cancel.",
+        Type 'y' to confirm deletion or 'n' to cancel.",
         selected_date.format("%B %d, %Y")
     );
 
@@ -41,7 +41,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(warning_widget, chunks[1]);
 
-    render_help(f, chunks[2], "Y: Delete Day | N/Esc: Cancel", true, false);
+    render_help(f, chunks[2], "y: Delete Day | n/Esc: Cancel", true, false);
 }
 
 /// Renders the delete food item confirmation dialog as a centered modal
@@ -72,7 +72,7 @@ pub fn render_confirm_delete_food_screen(
     let message = format!(
         "Delete this food item?\n\n\
         \"{}\"\n\n\
-        Press 'Y' to confirm or 'N' to cancel.",
+        Press 'y' to confirm or 'n' to cancel.",
         food_name
     );
 
@@ -119,7 +119,7 @@ pub fn render_confirm_delete_sokay_screen(
     let message = format!(
         "Delete this sokay item?\n\n\
         \"{}\"\n\n\
-        Press 'Y' to confirm or 'N' to cancel.",
+        Press 'y' to confirm or 'n' to cancel.",
         sokay_text
     );
 

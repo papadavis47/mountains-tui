@@ -389,7 +389,7 @@ impl App {
             KeyCode::Esc => {
                 self.handle_escape();
             }
-            KeyCode::Char('D') => {
+            KeyCode::Char('d') => {
                 if matches!(self.state.current_screen, AppScreen::Home) {
                     self.handle_delete_day_confirmation();
                 } else if matches!(self.state.current_screen, AppScreen::DailyView) {
@@ -416,7 +416,7 @@ impl App {
                     self.state.current_screen = AppScreen::AddFood;
                 }
             }
-            KeyCode::Char('E') => {
+            KeyCode::Char('e') => {
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     match self.state.focused_section {
                         FocusedSection::FoodItems => self.handle_edit_food(),
@@ -440,20 +440,12 @@ impl App {
                     self.handle_edit_strength_mobility();
                 }
             }
-            KeyCode::Char('N') => {
+            KeyCode::Char('n') => {
                 if matches!(self.state.current_screen, AppScreen::Startup) {
                     self.state.selected_date = chrono::Local::now().date_naive();
                     self.state.get_or_create_daily_log(self.state.selected_date);
                     self.state.current_screen = AppScreen::DailyView;
-                }
-            }
-            KeyCode::Char('L') => {
-                if matches!(self.state.current_screen, AppScreen::Startup) {
-                    self.state.current_screen = AppScreen::Home;
-                }
-            }
-            KeyCode::Char('n') => {
-                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                } else if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.handle_edit_notes();
                 }
             }
@@ -463,7 +455,9 @@ impl App {
                 }
             }
             KeyCode::Char('l') => {
-                if matches!(self.state.current_screen, AppScreen::DailyView) {
+                if matches!(self.state.current_screen, AppScreen::Startup) {
+                    self.state.current_screen = AppScreen::Home;
+                } else if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.handle_edit_elevation();
                 }
             }
@@ -852,7 +846,7 @@ impl App {
         use crate::models::DeleteTarget;
 
         match key {
-            KeyCode::Char('Y') => {
+            KeyCode::Char('y') => {
                 match target {
                     DeleteTarget::Day => {
                         let date_to_delete = self.state.selected_date;
@@ -911,7 +905,7 @@ impl App {
                     }
                 }
             }
-            KeyCode::Char('N') | KeyCode::Esc => {
+            KeyCode::Char('n') | KeyCode::Esc => {
                 match target {
                     DeleteTarget::Day => {
                         self.state.current_screen = AppScreen::Home;

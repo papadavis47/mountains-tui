@@ -51,7 +51,7 @@ pub fn render_home_screen(
     render_help(
         f,
         chunks[2],
-        " ↑/k: Up | ↓/j: Down | Enter: Select/Today | Esc: Unfocus | D: Delete Day | S: Startup Screen | q: Quit ",
+        " ↑/k: Up | ↓/j: Down | Enter: Select/Today | Esc: Unfocus | d: Delete Day | S: Startup Screen | q: Quit",
         true,
         false,
     );

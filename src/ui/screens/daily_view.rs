@@ -99,7 +99,7 @@ pub fn render_daily_view_screen(
     render_help(
         f,
         chunks[7],
-        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | E: Edit Item | D: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back ",
+        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back",
         true,
         false,
     );
