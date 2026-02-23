@@ -383,6 +383,7 @@ fn render_sokay_section(
             sokay_list_focused: false,
             strength_mobility_scroll: 0,
             notes_scroll: 0,
+            date_input_error: None,
         },
         selected_date,
     );

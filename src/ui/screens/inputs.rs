@@ -3,6 +3,7 @@ use ratatui::{Frame, style::Color, widgets::ListState};
 use crate::models::AppState;
 use crate::ui::modals::{render_input_modal, InputModalConfig};
 use super::daily_view::render_daily_view_screen;
+use super::home::render_home_screen;
 
 /// Renders the add food entry screen as a centered modal dialog
 pub fn render_add_food_screen(
@@ -150,6 +151,25 @@ pub fn render_add_sokay_screen(
 
     let title = format!("Add Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Magenta);
+    render_input_modal(f, config, input_buffer, cursor_position);
+}
+
+/// Renders the date input screen as a modal over the home screen
+pub fn render_date_input_screen(
+    f: &mut Frame,
+    state: &AppState,
+    list_state: &mut ListState,
+    sync_status: &str,
+    input_buffer: &str,
+    cursor_position: usize,
+) {
+    render_home_screen(f, state, list_state, sync_status);
+
+    let (title, color) = match &state.date_input_error {
+        Some(err) => (format!("Add Entry (MM.DD.YYYY) - {}", err), Color::Red),
+        None => ("Add Entry (MM.DD.YYYY)".to_string(), Color::Cyan),
+    };
+    let config = InputModalConfig::text(title, color);
     render_input_modal(f, config, input_buffer, cursor_position);
 }
 

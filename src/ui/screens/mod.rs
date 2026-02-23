@@ -20,6 +20,7 @@ pub use inputs::{
     render_edit_notes_screen,
     render_add_sokay_screen,
     render_edit_sokay_screen,
+    render_date_input_screen,
     wrap_at_width,
     calculate_cursor_in_wrapped_text,
 };

@@ -121,6 +121,7 @@ impl App {
             AppScreen::ConfirmDelete(target) => {
                 self.handle_delete_confirmation_input(key, target).await?;
             }
+            AppScreen::DateInput => self.handle_date_input(key).await?,
             _ => self.handle_navigation_input(key, modifiers).await?,
         }
         Ok(())
@@ -310,6 +311,47 @@ impl App {
         Ok(())
     }
 
+    async fn handle_date_input(&mut self, key: KeyCode) -> Result<()> {
+        match key {
+            KeyCode::Enter => {
+                let input = self.input_handler.input_buffer.clone();
+                match chrono::NaiveDate::parse_from_str(&input, "%m.%d.%Y") {
+                    Ok(date) => {
+                        let today = chrono::Local::now().date_naive();
+                        if date > today {
+                            self.state.date_input_error = Some("Future dates not allowed".to_string());
+                        } else {
+                            self.input_handler.clear();
+                            self.state.date_input_error = None;
+                            self.state.selected_date = date;
+                            self.state.get_or_create_daily_log(date);
+                            self.state.current_screen = AppScreen::DailyView;
+                        }
+                    }
+                    Err(_) => {
+                        self.state.date_input_error = Some("Invalid date format".to_string());
+                    }
+                }
+            }
+            KeyCode::Esc => {
+                self.input_handler.clear();
+                self.state.date_input_error = None;
+                self.state.current_screen = AppScreen::Home;
+            }
+            KeyCode::Char(c) => {
+                if c.is_ascii_digit() || c == '.' {
+                    self.state.date_input_error = None;
+                    self.input_handler.handle_text_input(key);
+                }
+            }
+            _ => {
+                self.state.date_input_error = None;
+                self.input_handler.handle_text_input(key);
+            }
+        }
+        Ok(())
+    }
+
     async fn handle_navigation_input(&mut self, key: KeyCode, modifiers: crossterm::event::KeyModifiers) -> Result<()> {
         // Shift+J/K switches section focus in DailyView
         if modifiers.contains(crossterm::event::KeyModifiers::SHIFT) {
@@ -471,6 +513,13 @@ impl App {
                     self.state.current_screen = AppScreen::Startup;
                 }
             }
+            KeyCode::Char('a') => {
+                if matches!(self.state.current_screen, AppScreen::Home | AppScreen::Startup) {
+                    self.input_handler.clear();
+                    self.state.date_input_error = None;
+                    self.state.current_screen = AppScreen::DateInput;
+                }
+            }
             KeyCode::Char(' ') => {
                 if matches!(self.state.current_screen, AppScreen::DailyView) {
                     self.state.current_screen = AppScreen::ShortcutsHelp;
@@ -616,6 +665,16 @@ impl App {
                         );
                     }
                 }
+            }
+            AppScreen::DateInput => {
+                screens::render_date_input_screen(
+                    f,
+                    &self.state,
+                    &mut self.list_state,
+                    &self.sync_status,
+                    &self.input_handler.input_buffer,
+                    self.input_handler.cursor_position,
+                );
             }
             AppScreen::ShortcutsHelp => {
                 screens::render_shortcuts_help_screen(

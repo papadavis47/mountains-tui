@@ -105,6 +105,7 @@ pub enum AppScreen {
     InputField(field_accessor::FieldType),
     ConfirmDelete(DeleteTarget),
     ShortcutsHelp,
+    DateInput,
     Syncing,
 }
 
@@ -118,6 +119,7 @@ pub struct AppState {
     pub sokay_list_focused: bool,
     pub strength_mobility_scroll: u16,
     pub notes_scroll: u16,
+    pub date_input_error: Option<String>,
 }
 
 impl AppState {
@@ -133,6 +135,7 @@ impl AppState {
             sokay_list_focused: false,
             strength_mobility_scroll: 0,
             notes_scroll: 0,
+            date_input_error: None,
         }
     }
 
