@@ -2,6 +2,7 @@
 /target
 
 # Environment variables (NEVER commit these!)
+.envrc
 .env
 .env.local
 .env.*.local

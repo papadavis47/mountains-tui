@@ -32,8 +32,7 @@ pub struct App {
 impl App {
     /// Creates app with instant startup, spawns background cloud sync if configured
     pub async fn new(config: AppConfig) -> Result<Self> {
-        let home_dir = dirs::home_dir().context("Could not find home directory")?;
-        let mountains_dir = home_dir.join(".mountains");
+        let mountains_dir = crate::config::data_dir()?;
 
         if !mountains_dir.exists() {
             std::fs::create_dir_all(&mountains_dir)

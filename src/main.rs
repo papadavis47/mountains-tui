@@ -22,8 +22,7 @@ use crate::app::App;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let home_dir = dirs::home_dir().expect("Could not find home directory");
-    let data_dir = home_dir.join(".mountains");
+    let data_dir = config::data_dir()?;
 
     // One-time migration from .env to config.toml
     config::migrate_from_env(&data_dir).ok();

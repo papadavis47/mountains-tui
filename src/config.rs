@@ -38,7 +38,10 @@ impl SyncConfig {
     }
 }
 
-fn config_dir() -> Result<PathBuf> {
+pub fn data_dir() -> Result<PathBuf> {
+    if let Ok(dir) = std::env::var("MOUNTAINS_DATA_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
     let home = dirs::home_dir().context("Could not find home directory")?;
     Ok(home.join(".mountains"))
 }
@@ -65,12 +68,12 @@ impl AppConfig {
     }
 
     pub fn load() -> Result<Self> {
-        let path = config_dir()?.join("config.toml");
+        let path = data_dir()?.join("config.toml");
         Self::load_from_path(&path)
     }
 
     pub fn save(&self) -> Result<()> {
-        let path = config_dir()?.join("config.toml");
+        let path = data_dir()?.join("config.toml");
         self.save_to_path(&path)
     }
 }
