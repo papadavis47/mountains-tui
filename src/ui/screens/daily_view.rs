@@ -239,6 +239,8 @@ fn push_field(
         let prefix_width = Span::raw(line.as_str()).width() as u16;
         *caret_col = Some(prefix_width + edit.cursor as u16);
         line.push_str(edit.buffer);
+        // Extra leading space so the block cursor doesn't sit flush against the unit.
+        line.push(' ');
         line.push_str(unit);
     } else {
         line.push_str(value);
