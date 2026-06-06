@@ -1,6 +1,14 @@
 use chrono::{Datelike, Local};
 use crate::models::DailyLog;
 
+/// Rounds to one decimal place, normalizing negative zero to positive zero.
+/// An empty `f32` sum yields `-0.0` (std's additive identity), which would
+/// otherwise display as "-0.0" when no miles are logged for the period.
+fn round_tenths(total: f32) -> f32 {
+    let rounded = (total * 10.0).round() / 10.0;
+    if rounded == 0.0 { 0.0 } else { rounded }
+}
+
 pub fn calculate_yearly_miles(logs: &[DailyLog]) -> f32 {
     let now = Local::now().date_naive();
     let current_year = now.year();
@@ -10,7 +18,7 @@ pub fn calculate_yearly_miles(logs: &[DailyLog]) -> f32 {
         .filter_map(|log| log.miles_covered)
         .sum();
 
-    (total * 10.0).round() / 10.0
+    round_tenths(total)
 }
 
 pub fn calculate_monthly_miles(logs: &[DailyLog]) -> f32 {
@@ -23,7 +31,7 @@ pub fn calculate_monthly_miles(logs: &[DailyLog]) -> f32 {
         .filter_map(|log| log.miles_covered)
         .sum();
 
-    (total * 10.0).round() / 10.0
+    round_tenths(total)
 }
 
 #[cfg(test)]
@@ -60,7 +68,11 @@ mod tests {
     #[test]
     fn test_calculate_yearly_miles_empty() {
         let logs: Vec<DailyLog> = vec![];
-        assert_eq!(calculate_yearly_miles(&logs), 0.0);
+        let result = calculate_yearly_miles(&logs);
+        assert_eq!(result, 0.0);
+        // Guard against negative zero (empty f32 sum is -0.0), which displays as "-0.0".
+        assert!(!result.is_sign_negative());
+        assert_eq!(format!("{:.1}", result), "0.0");
     }
 
     #[test]
@@ -154,7 +166,11 @@ mod tests {
     #[test]
     fn test_calculate_monthly_miles_empty() {
         let logs: Vec<DailyLog> = vec![];
-        assert_eq!(calculate_monthly_miles(&logs), 0.0);
+        let result = calculate_monthly_miles(&logs);
+        assert_eq!(result, 0.0);
+        // Guard against negative zero (empty f32 sum is -0.0), which displays as "-0.0".
+        assert!(!result.is_sign_negative());
+        assert_eq!(format!("{:.1}", result), "0.0");
     }
 
     #[test]
