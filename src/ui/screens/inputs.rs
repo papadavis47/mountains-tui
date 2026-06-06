@@ -15,7 +15,7 @@ pub fn render_add_food_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Add Food - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Yellow);
@@ -32,74 +32,10 @@ pub fn render_edit_food_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Edit Food - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Yellow);
-    render_input_modal(f, config, input_buffer, cursor_position);
-}
-
-/// Renders the edit weight screen as a centered modal dialog
-pub fn render_edit_weight_screen(
-    f: &mut Frame,
-    state: &AppState,
-    food_list_state: &mut ListState,
-    sokay_list_state: &mut ListState,
-    sync_status: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
-
-    let config = InputModalConfig::numeric("Edit Weight".to_string(), Color::Yellow);
-    render_input_modal(f, config, input_buffer, cursor_position);
-}
-
-/// Renders the edit waist measurement screen as a centered modal dialog
-pub fn render_edit_waist_screen(
-    f: &mut Frame,
-    state: &AppState,
-    food_list_state: &mut ListState,
-    sokay_list_state: &mut ListState,
-    sync_status: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
-
-    let config = InputModalConfig::numeric("Edit Waist Size".to_string(), Color::Yellow);
-    render_input_modal(f, config, input_buffer, cursor_position);
-}
-
-/// Renders the edit miles screen as a centered modal dialog
-pub fn render_edit_miles_screen(
-    f: &mut Frame,
-    state: &AppState,
-    food_list_state: &mut ListState,
-    sokay_list_state: &mut ListState,
-    sync_status: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
-
-    let config = InputModalConfig::numeric("Edit Miles".to_string(), Color::LightRed);
-    render_input_modal(f, config, input_buffer, cursor_position);
-}
-
-/// Renders the edit elevation screen as a centered modal dialog
-pub fn render_edit_elevation_screen(
-    f: &mut Frame,
-    state: &AppState,
-    food_list_state: &mut ListState,
-    sokay_list_state: &mut ListState,
-    sync_status: &str,
-    input_buffer: &str,
-    cursor_position: usize,
-) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
-
-    let config = InputModalConfig::numeric("Edit Elevation".to_string(), Color::LightRed);
     render_input_modal(f, config, input_buffer, cursor_position);
 }
 
@@ -113,7 +49,7 @@ pub fn render_edit_strength_mobility_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Edit Strength & Mobility - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::multiline(title, Color::Cyan);
@@ -130,7 +66,7 @@ pub fn render_edit_notes_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Edit Notes - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::multiline(title, Color::Green);
@@ -147,7 +83,7 @@ pub fn render_add_sokay_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Add Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Magenta);
@@ -183,7 +119,7 @@ pub fn render_edit_sokay_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let title = format!("Edit Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Magenta);

@@ -3,12 +3,22 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
+    text::Span,
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::miles_stats::{calculate_yearly_miles, calculate_monthly_miles};
+use crate::models::field_accessor::FieldType;
 use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::{create_highlight_style, render_help, render_title};
+
+/// Active in-place edit of a numeric field, rendered directly inside its section
+/// row (Measurements / Running) instead of in a popup modal.
+pub struct InPlaceEdit<'a> {
+    pub field: FieldType,
+    pub buffer: &'a str,
+    pub cursor: usize,
+}
 
 /// Renders the daily view screen for a specific date
 pub fn render_daily_view_screen(
@@ -17,6 +27,7 @@ pub fn render_daily_view_screen(
     food_list_state: &mut ListState,
     sokay_list_state: &mut ListState,
     sync_status: &str,
+    edit: Option<InPlaceEdit>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -46,6 +57,7 @@ pub fn render_daily_view_screen(
         state.selected_date,
         &state.daily_logs,
         &state.focused_section,
+        edit.as_ref(),
     );
 
     let yearly_miles = calculate_yearly_miles(&state.daily_logs);
@@ -58,6 +70,7 @@ pub fn render_daily_view_screen(
         &state.focused_section,
         yearly_miles,
         monthly_miles,
+        edit.as_ref(),
     );
 
     render_food_list_section(
@@ -96,13 +109,12 @@ pub fn render_daily_view_screen(
         &state.focused_section,
     );
 
-    render_help(
-        f,
-        chunks[7],
-        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back",
-        true,
-        false,
-    );
+    let help_text = if edit.is_some() {
+        " Editing — type value | Enter: Save | Esc: Cancel"
+    } else {
+        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back"
+    };
+    render_help(f, chunks[7], help_text, true, false);
 
     // Render expanded overlay for multi-line sections when focused
     match &state.focused_section {
@@ -135,55 +147,54 @@ fn render_measurements_section(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
+    edit: Option<&InPlaceEdit>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    let (has_focus, focused_field) = match focused_section {
-        FocusedSection::Measurements { focused_field } => (true, Some(focused_field)),
-        _ => (false, None),
+    // A field in this section being actively edited in place (Weight or Waist).
+    let editing_field = match edit.map(|e| e.field) {
+        Some(FieldType::Weight) => Some(MeasurementField::Weight),
+        Some(FieldType::Waist) => Some(MeasurementField::Waist),
+        _ => None,
     };
 
-    let measurements_text = if let Some(log) = log {
-        let weight_str = if let Some(weight) = log.weight {
-            format!("Weight: {} lbs", weight)
-        } else {
-            "Weight: Not set".to_string()
-        };
-        let waist_str = if let Some(waist) = log.waist {
-            format!("Waist Size: {} in", waist)
-        } else {
-            "Waist Size: Not set".to_string()
-        };
+    let section_focused = matches!(focused_section, FocusedSection::Measurements { .. });
+    let has_focus = section_focused || editing_field.is_some();
 
-        let weight_display = if matches!(focused_field, Some(MeasurementField::Weight)) {
-            format!("► {}", weight_str)
-        } else {
-            weight_str
-        };
-        let waist_display = if matches!(focused_field, Some(MeasurementField::Waist)) {
-            format!("► {}", waist_str)
-        } else {
-            waist_str
-        };
+    // The field showing the ► marker: the edited field while editing, else the
+    // section's focused field.
+    let marked_field: Option<MeasurementField> = editing_field.clone().or_else(|| match focused_section {
+        FocusedSection::Measurements { focused_field } => Some(focused_field.clone()),
+        _ => None,
+    });
 
-        format!("{} | {}", weight_display, waist_display)
-    } else {
-        let weight_str = "Weight: Not set".to_string();
-        let waist_str = "Waist Size: Not set".to_string();
+    let weight_value =
+        log.and_then(|l| l.weight).map(|w| format!("{} lbs", w)).unwrap_or_else(|| "Not set".to_string());
+    let waist_value =
+        log.and_then(|l| l.waist).map(|w| format!("{} in", w)).unwrap_or_else(|| "Not set".to_string());
 
-        let weight_display = if matches!(focused_field, Some(MeasurementField::Weight)) {
-            format!("► {}", weight_str)
-        } else {
-            weight_str
-        };
-        let waist_display = if matches!(focused_field, Some(MeasurementField::Waist)) {
-            format!("► {}", waist_str)
-        } else {
-            waist_str
-        };
+    let mut line = String::new();
+    let mut caret_col: Option<u16> = None;
 
-        format!("{} | {}", weight_display, waist_display)
-    };
+    push_field(
+        &mut line,
+        &mut caret_col,
+        marked_field.as_ref() == Some(&MeasurementField::Weight),
+        "Weight: ",
+        if editing_field == Some(MeasurementField::Weight) { edit } else { None },
+        &weight_value,
+        " lbs",
+    );
+    line.push_str(" | ");
+    push_field(
+        &mut line,
+        &mut caret_col,
+        marked_field.as_ref() == Some(&MeasurementField::Waist),
+        "Waist Size: ",
+        if editing_field == Some(MeasurementField::Waist) { edit } else { None },
+        &waist_value,
+        " in",
+    );
 
     let border_style = if has_focus {
         Style::default().fg(Color::Yellow)
@@ -191,16 +202,47 @@ fn render_measurements_section(
         Style::default().fg(Color::DarkGray)
     };
 
-    let measurements_widget = Paragraph::new(measurements_text)
-        .style(Style::default().fg(Color::Yellow))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title("Measurements")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
-        );
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title("Measurements")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+    let inner = block.inner(area);
+
+    let measurements_widget = Paragraph::new(line).style(Style::default().fg(Color::Yellow)).block(block);
     f.render_widget(measurements_widget, area);
+
+    if let Some(col) = caret_col {
+        f.set_cursor_position((inner.x + col, inner.y));
+    }
+}
+
+/// Appends one labelled field to a section row, recording the caret column when
+/// the field is being edited in place. `marked` adds the ► focus marker; `edit`
+/// (when `Some`) substitutes the input buffer for the value and sets the caret.
+fn push_field(
+    line: &mut String,
+    caret_col: &mut Option<u16>,
+    marked: bool,
+    label: &str,
+    edit: Option<&InPlaceEdit>,
+    value: &str,
+    unit: &str,
+) {
+    if marked {
+        line.push_str("► ");
+    }
+    line.push_str(label);
+
+    if let Some(edit) = edit {
+        // Caret sits within the buffer; digits/dots are width-1 so char count == cells.
+        let prefix_width = Span::raw(line.as_str()).width() as u16;
+        *caret_col = Some(prefix_width + edit.cursor as u16);
+        line.push_str(edit.buffer);
+        line.push_str(unit);
+    } else {
+        line.push_str(value);
+    }
 }
 
 /// Renders the running activity display section
@@ -212,13 +254,23 @@ fn render_running_section(
     focused_section: &FocusedSection,
     yearly_miles: f32,
     monthly_miles: f32,
+    edit: Option<&InPlaceEdit>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
-    let (has_focus, focused_field) = match focused_section {
-        FocusedSection::Running { focused_field } => (true, Some(focused_field)),
-        _ => (false, None),
+    let editing_field = match edit.map(|e| e.field) {
+        Some(FieldType::Miles) => Some(RunningField::Miles),
+        Some(FieldType::Elevation) => Some(RunningField::Elevation),
+        _ => None,
     };
+
+    let section_focused = matches!(focused_section, FocusedSection::Running { .. });
+    let has_focus = section_focused || editing_field.is_some();
+
+    let marked_field: Option<RunningField> = editing_field.clone().or_else(|| match focused_section {
+        FocusedSection::Running { focused_field } => Some(focused_field.clone()),
+        _ => None,
+    });
 
     let now = chrono::Local::now();
     let current_year = now.year();
@@ -247,47 +299,34 @@ fn render_running_section(
         format!("{:.1} miles covered for the month of {}", monthly_miles, month_name)
     };
 
-    let running_text = if let Some(log) = log {
-        let miles_str = if let Some(miles) = log.miles_covered {
-            format!("Miles: {} mi", miles)
-        } else {
-            "Miles: Not set".to_string()
-        };
-        let elevation_str = if let Some(elevation) = log.elevation_gain {
-            format!("Elevation: {} ft", elevation)
-        } else {
-            "Elevation: Not set".to_string()
-        };
+    let miles_value =
+        log.and_then(|l| l.miles_covered).map(|m| format!("{} mi", m)).unwrap_or_else(|| "Not set".to_string());
+    let elevation_value =
+        log.and_then(|l| l.elevation_gain).map(|e| format!("{} ft", e)).unwrap_or_else(|| "Not set".to_string());
 
-        let miles_display = if matches!(focused_field, Some(RunningField::Miles)) {
-            format!("► {}", miles_str)
-        } else {
-            miles_str
-        };
-        let elevation_display = if matches!(focused_field, Some(RunningField::Elevation)) {
-            format!("► {}", elevation_str)
-        } else {
-            elevation_str
-        };
+    let mut line = String::new();
+    let mut caret_col: Option<u16> = None;
 
-        format!("{} | {} | {} | {}", miles_display, elevation_display, yearly_text, monthly_text)
-    } else {
-        let miles_str = "Miles: Not set".to_string();
-        let elevation_str = "Elevation: Not set".to_string();
-
-        let miles_display = if matches!(focused_field, Some(RunningField::Miles)) {
-            format!("► {}", miles_str)
-        } else {
-            miles_str
-        };
-        let elevation_display = if matches!(focused_field, Some(RunningField::Elevation)) {
-            format!("► {}", elevation_str)
-        } else {
-            elevation_str
-        };
-
-        format!("{} | {} | {} | {}", miles_display, elevation_display, yearly_text, monthly_text)
-    };
+    push_field(
+        &mut line,
+        &mut caret_col,
+        marked_field.as_ref() == Some(&RunningField::Miles),
+        "Miles: ",
+        if editing_field == Some(RunningField::Miles) { edit } else { None },
+        &miles_value,
+        " mi",
+    );
+    line.push_str(" | ");
+    push_field(
+        &mut line,
+        &mut caret_col,
+        marked_field.as_ref() == Some(&RunningField::Elevation),
+        "Elevation: ",
+        if editing_field == Some(RunningField::Elevation) { edit } else { None },
+        &elevation_value,
+        " ft",
+    );
+    line.push_str(&format!(" | {} | {}", yearly_text, monthly_text));
 
     let border_style = if has_focus {
         Style::default().fg(Color::LightRed)
@@ -295,16 +334,19 @@ fn render_running_section(
         Style::default().fg(Color::DarkGray)
     };
 
-    let running_widget = Paragraph::new(running_text)
-        .style(Style::default().fg(Color::LightRed))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title("Running")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
-        );
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title("Running")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+    let inner = block.inner(area);
+
+    let running_widget = Paragraph::new(line).style(Style::default().fg(Color::LightRed)).block(block);
     f.render_widget(running_widget, area);
+
+    if let Some(col) = caret_col {
+        f.set_cursor_position((inner.x + col, inner.y));
+    }
 }
 
 /// Renders the food items list section

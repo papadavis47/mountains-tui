@@ -688,7 +688,7 @@ impl App {
                 screens::render_home_screen(f, &self.state, &mut self.list_state, &self.sync_status);
             }
             AppScreen::DailyView => {
-                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state, &self.sync_status);
+                screens::render_daily_view_screen(f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state, &self.sync_status, None);
             }
             AppScreen::AddFood => {
                 screens::render_add_food_screen(
@@ -737,22 +737,18 @@ impl App {
             AppScreen::InputField(field_type) => {
                 use crate::models::field_accessor::FieldType;
                 match field_type {
-                    FieldType::Weight => screens::render_edit_weight_screen(
-                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
-                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
-                    ),
-                    FieldType::Waist => screens::render_edit_waist_screen(
-                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
-                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
-                    ),
-                    FieldType::Miles => screens::render_edit_miles_screen(
-                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
-                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
-                    ),
-                    FieldType::Elevation => screens::render_edit_elevation_screen(
-                        f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
-                        &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,
-                    ),
+                    // Numeric fields edit in place inside their daily-view row.
+                    FieldType::Weight | FieldType::Waist | FieldType::Miles | FieldType::Elevation => {
+                        let edit = screens::InPlaceEdit {
+                            field: field_type,
+                            buffer: &self.input_handler.input_buffer,
+                            cursor: self.input_handler.cursor_position,
+                        };
+                        screens::render_daily_view_screen(
+                            f, &self.state, &mut self.food_list_state,
+                            &mut self.sokay_list_state, &self.sync_status, Some(edit),
+                        );
+                    }
                     FieldType::StrengthMobility => screens::render_edit_strength_mobility_screen(
                         f, &self.state, &mut self.food_list_state, &mut self.sokay_list_state,
                         &self.sync_status, &self.input_handler.input_buffer, self.input_handler.cursor_position,

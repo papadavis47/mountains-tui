@@ -12,8 +12,6 @@ use crate::ui::screens::{calculate_cursor_in_wrapped_text, wrap_at_width};
 pub enum InputModalType {
     /// Single-line text input (50% x 13%)
     Text,
-    /// Single-line numeric input (12% x 8%)
-    Numeric,
     /// Multi-line text input with wrapping (60% x 40%)
     Multiline,
 }
@@ -22,14 +20,13 @@ impl InputModalType {
     fn dimensions(&self) -> (u16, u16) {
         match self {
             InputModalType::Text => (50, 13),
-            InputModalType::Numeric => (12, 8),
             InputModalType::Multiline => (60, 40),
         }
     }
 
     fn padding(&self) -> ratatui::widgets::Padding {
         match self {
-            InputModalType::Text | InputModalType::Numeric => ratatui::widgets::Padding {
+            InputModalType::Text => ratatui::widgets::Padding {
                 left: 1,
                 right: 1,
                 top: 1,
@@ -59,11 +56,6 @@ impl InputModalConfig {
     /// Helper for text input modals
     pub fn text(title: String, border_color: Color) -> Self {
         Self::new(title, border_color, InputModalType::Text)
-    }
-
-    /// Helper for numeric input modals
-    pub fn numeric(title: String, border_color: Color) -> Self {
-        Self::new(title, border_color, InputModalType::Numeric)
     }
 
     /// Helper for multiline input modals
@@ -98,7 +90,7 @@ pub fn render_input_modal(
 
     // Render based on modal type
     match config.modal_type {
-        InputModalType::Text | InputModalType::Numeric => {
+        InputModalType::Text => {
             // Single-line input rendering
             let input_text = format_input_with_cursor(input_buffer);
             let input = Paragraph::new(input_text).style(create_input_style());

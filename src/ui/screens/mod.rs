@@ -9,14 +9,10 @@ pub mod config_sync;
 // Re-export all public functions for backward compatibility
 pub use startup::render_startup_screen;
 pub use home::render_home_screen;
-pub use daily_view::render_daily_view_screen;
+pub use daily_view::{render_daily_view_screen, InPlaceEdit};
 pub use inputs::{
     render_add_food_screen,
     render_edit_food_screen,
-    render_edit_weight_screen,
-    render_edit_waist_screen,
-    render_edit_miles_screen,
-    render_edit_elevation_screen,
     render_edit_strength_mobility_screen,
     render_edit_notes_screen,
     render_add_sokay_screen,

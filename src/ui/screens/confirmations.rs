@@ -53,7 +53,7 @@ pub fn render_confirm_delete_food_screen(
     sync_status: &str,
     food_index: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let food_name = if let Some(log) = state.get_daily_log(state.selected_date) {
         if food_index < log.food_entries.len() {
@@ -100,7 +100,7 @@ pub fn render_confirm_delete_sokay_screen(
     sync_status: &str,
     sokay_index: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
 
     let sokay_text = if let Some(log) = state.get_daily_log(state.selected_date) {
         if sokay_index < log.sokay_entries.len() {
