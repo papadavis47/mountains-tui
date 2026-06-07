@@ -939,6 +939,9 @@ impl App {
             AppScreen::Home => {
                 self.list_state.select(None);
             }
+            AppScreen::ShortcutsHelp => {
+                self.state.current_screen = AppScreen::DailyView;
+            }
             AppScreen::DailyView => {
                 match self.state.focused_section {
                     FocusedSection::FoodItems => {

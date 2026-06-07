@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Clear, Gauge, ListState, Paragraph},
 };
@@ -18,10 +18,6 @@ pub fn render_shortcuts_help_screen(
     sync_status: &str,
 ) {
     render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
-
-    let popup_area = centered_rect(f.area(), 70, 50);
-
-    f.render_widget(Clear, popup_area);
 
     let shortcuts_text = "\
 Measurements:
@@ -41,7 +37,25 @@ Training:
   n - Edit daily notes
   Alt+Enter - Insert newline (in multiline fields)
 
-Press Space to close";
+Press Enter to save entry, or Esc to exit field
+
+With any focused section, press Enter to place cursor
+
+
+Press Space or Esc to close this modal";
+
+    // Size the popup to the content (plus border + top/bottom padding) so the
+    // last line is never clipped, then center it within the screen.
+    let area = f.area();
+    let line_count = shortcuts_text.lines().count() as u16;
+    let content_width = shortcuts_text.lines().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
+    let popup_height = (line_count + 4).min(area.height); // 2 border + 2 padding rows
+    let popup_width = (content_width + 4).clamp(40.min(area.width), area.width); // 2 border + 2 padding cols
+    let popup_x = area.x + area.width.saturating_sub(popup_width) / 2;
+    let popup_y = area.y + area.height.saturating_sub(popup_height) / 2;
+    let popup_area = Rect { x: popup_x, y: popup_y, width: popup_width, height: popup_height };
+
+    f.render_widget(Clear, popup_area);
 
     let block = Block::default()
         .borders(Borders::ALL)
