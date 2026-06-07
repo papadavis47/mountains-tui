@@ -130,6 +130,9 @@ pub struct AppState {
     pub date_input_error: Option<String>,
     pub config_sync_focused_field: ConfigSyncField,
     pub config_sync_status: Option<String>,
+    /// Last rendered frame size, used to bound multi-line section scrolling.
+    pub frame_width: u16,
+    pub frame_height: u16,
 }
 
 impl AppState {
@@ -148,6 +151,8 @@ impl AppState {
             date_input_error: None,
             config_sync_focused_field: ConfigSyncField::DbUrl,
             config_sync_status: None,
+            frame_width: 0,
+            frame_height: 0,
         }
     }
 

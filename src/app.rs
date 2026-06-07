@@ -401,10 +401,14 @@ impl App {
                         FocusedSection::FoodItems => self.move_food_selection_down(),
                         FocusedSection::Sokay => self.move_sokay_selection_down(),
                         FocusedSection::StrengthMobility => {
-                            self.state.strength_mobility_scroll = self.state.strength_mobility_scroll.saturating_add(1);
+                            let max = self.strength_mobility_max_scroll();
+                            self.state.strength_mobility_scroll =
+                                self.state.strength_mobility_scroll.saturating_add(1).min(max);
                         }
                         FocusedSection::Notes => {
-                            self.state.notes_scroll = self.state.notes_scroll.saturating_add(1);
+                            let max = self.notes_max_scroll();
+                            self.state.notes_scroll =
+                                self.state.notes_scroll.saturating_add(1).min(max);
                         }
                         _ => {}
                     }
@@ -680,6 +684,8 @@ impl App {
     }
 
     fn ui(&mut self, f: &mut Frame) {
+        self.state.frame_width = f.area().width;
+        self.state.frame_height = f.area().height;
         match self.state.current_screen {
             AppScreen::Startup => {
                 screens::render_startup_screen(f, &self.state);
@@ -908,6 +914,24 @@ impl App {
         if let AppScreen::Home = self.state.current_screen {
             ActionHandler::handle_home_enter(&mut self.state, self.list_state.selected());
         }
+    }
+
+    fn strength_mobility_max_scroll(&self) -> u16 {
+        let text = self
+            .state
+            .get_daily_log(self.state.selected_date)
+            .and_then(|l| l.strength_mobility.clone())
+            .unwrap_or_default();
+        screens::max_scroll_offset(&text, self.state.frame_width, self.state.frame_height)
+    }
+
+    fn notes_max_scroll(&self) -> u16 {
+        let text = self
+            .state
+            .get_daily_log(self.state.selected_date)
+            .and_then(|l| l.notes.clone())
+            .unwrap_or_default();
+        screens::max_scroll_offset(&text, self.state.frame_width, self.state.frame_height)
     }
 
     fn handle_escape(&mut self) {

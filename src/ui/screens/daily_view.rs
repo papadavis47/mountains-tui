@@ -460,6 +460,8 @@ fn render_sokay_section(
             date_input_error: None,
             config_sync_focused_field: crate::models::ConfigSyncField::DbUrl,
             config_sync_status: None,
+            frame_width: 0,
+            frame_height: 0,
         },
         selected_date,
     );
@@ -615,6 +617,32 @@ fn calculate_text_height(text: &str, width: usize) -> usize {
     }
 
     total_lines.max(1)
+}
+
+/// Maximum vertical scroll offset (in lines) for an expandable multi-line
+/// section, given the full frame size. Mirrors the geometry used by the
+/// expanded renderers so scrolling can be clamped to the content; returns 0
+/// when the content fits without scrolling.
+pub fn max_scroll_offset(text: &str, frame_width: u16, frame_height: u16) -> u16 {
+    let default_height = 4;
+    // The daily view layout insets the frame by a 1-cell margin on each side,
+    // and each section block has a border + 1 cell of horizontal padding.
+    let section_width = frame_width.saturating_sub(2);
+    let width = section_width.saturating_sub(4) as usize;
+    let content_height = calculate_text_height(text, width) as u16;
+    let needed_height = content_height + 2;
+
+    if needed_height <= default_height {
+        return 0;
+    }
+
+    let max_height = (frame_height * 60 / 100).max(default_height);
+    let expanded_height = needed_height.min(max_height);
+    let visible_text_lines = expanded_height.saturating_sub(2); // top + bottom border
+    // `content_height` is a character-based estimate; word wrapping can render a
+    // line or two more than estimated, so add a 1-line buffer to guarantee the
+    // last line is always reachable.
+    content_height.saturating_sub(visible_text_lines) + 1
 }
 
 /// Renders expanded Strength & Mobility section when focused
