@@ -105,7 +105,7 @@ pub fn render_date_input_screen(
         Some(err) => (format!("Add Entry (MM.DD.YYYY) - {}", err), Color::Red),
         None => ("Add Entry (MM.DD.YYYY)".to_string(), Color::Cyan),
     };
-    let config = InputModalConfig::text(title, color);
+    let config = InputModalConfig::text(title, color).with_width_percent(25);
     render_input_modal(f, config, input_buffer, cursor_position);
 }
 

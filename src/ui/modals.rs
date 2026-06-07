@@ -42,6 +42,8 @@ pub struct InputModalConfig {
     pub title: String,
     pub border_color: Color,
     pub modal_type: InputModalType,
+    /// Overrides the modal type's default width percentage when set.
+    pub width_percent: Option<u16>,
 }
 
 impl InputModalConfig {
@@ -50,6 +52,7 @@ impl InputModalConfig {
             title,
             border_color,
             modal_type,
+            width_percent: None,
         }
     }
 
@@ -62,6 +65,12 @@ impl InputModalConfig {
     pub fn multiline(title: String, border_color: Color) -> Self {
         Self::new(title, border_color, InputModalType::Multiline)
     }
+
+    /// Overrides the default width with a percentage of the screen width.
+    pub fn with_width_percent(mut self, width_percent: u16) -> Self {
+        self.width_percent = Some(width_percent);
+        self
+    }
 }
 
 /// Renders a generic input modal over the current screen
@@ -71,7 +80,8 @@ pub fn render_input_modal(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    let (width_percent, height_percent) = config.modal_type.dimensions();
+    let (default_width, height_percent) = config.modal_type.dimensions();
+    let width_percent = config.width_percent.unwrap_or(default_width);
     let popup_area = centered_rect(f.area(), width_percent, height_percent);
 
     // Clear the popup area to prevent visual artifacts
