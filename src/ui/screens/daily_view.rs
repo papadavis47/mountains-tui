@@ -3,7 +3,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    text::Span,
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
@@ -168,32 +168,38 @@ fn render_measurements_section(
         _ => None,
     });
 
-    let weight_value =
-        log.and_then(|l| l.weight).map(|w| format!("{} lbs", w)).unwrap_or_else(|| "Not set".to_string());
-    let waist_value =
-        log.and_then(|l| l.waist).map(|w| format!("{} in", w)).unwrap_or_else(|| "Not set".to_string());
+    let weight_value = log.and_then(|l| l.weight).map(|w| format!("{} lbs", w));
+    let waist_value = log.and_then(|l| l.waist).map(|w| format!("{} in", w));
 
-    let mut line = String::new();
+    let base = Style::default().fg(Color::Yellow);
+    let mut spans: Vec<Span> = Vec::new();
+    let mut width: u16 = 0;
     let mut caret_col: Option<u16> = None;
 
     push_field(
-        &mut line,
+        &mut spans,
         &mut caret_col,
+        &mut width,
+        base,
         marked_field.as_ref() == Some(&MeasurementField::Weight),
         "Weight: ",
         if editing_field == Some(MeasurementField::Weight) { edit } else { None },
-        &weight_value,
+        weight_value.as_deref(),
         " lbs",
+        "Press 'w' to add",
     );
-    line.push_str(" | ");
+    push_span(&mut spans, &mut width, " | ".to_string(), base);
     push_field(
-        &mut line,
+        &mut spans,
         &mut caret_col,
+        &mut width,
+        base,
         marked_field.as_ref() == Some(&MeasurementField::Waist),
         "Waist Size: ",
         if editing_field == Some(MeasurementField::Waist) { edit } else { None },
-        &waist_value,
+        waist_value.as_deref(),
         " in",
+        "Press 's' to add",
     );
 
     let border_style = if has_focus {
@@ -209,7 +215,7 @@ fn render_measurements_section(
         .padding(ratatui::widgets::Padding::horizontal(1));
     let inner = block.inner(area);
 
-    let measurements_widget = Paragraph::new(line).style(Style::default().fg(Color::Yellow)).block(block);
+    let measurements_widget = Paragraph::new(Line::from(spans)).block(block);
     f.render_widget(measurements_widget, area);
 
     if let Some(col) = caret_col {
@@ -217,33 +223,51 @@ fn render_measurements_section(
     }
 }
 
+/// Dimmed style for inline "Press 'x' to add" placeholders shown when a numeric
+/// field is unset, matching the dimmed placeholders used by the list sections.
+fn placeholder_style() -> Style {
+    Style::default().fg(Color::DarkGray)
+}
+
+/// Pushes a styled span and advances the running display width (in cells) used
+/// for caret positioning.
+fn push_span(spans: &mut Vec<Span<'static>>, width: &mut u16, text: String, style: Style) {
+    *width += Span::raw(text.as_str()).width() as u16;
+    spans.push(Span::styled(text, style));
+}
+
 /// Appends one labelled field to a section row, recording the caret column when
 /// the field is being edited in place. `marked` adds the ► focus marker; `edit`
 /// (when `Some`) substitutes the input buffer for the value and sets the caret.
+/// When `value` is `None` and the field isn't being edited, the dimmed `help`
+/// placeholder is shown in place of the value.
 fn push_field(
-    line: &mut String,
+    spans: &mut Vec<Span<'static>>,
     caret_col: &mut Option<u16>,
+    width: &mut u16,
+    base_style: Style,
     marked: bool,
     label: &str,
     edit: Option<&InPlaceEdit>,
-    value: &str,
+    value: Option<&str>,
     unit: &str,
+    help: &str,
 ) {
     if marked {
-        line.push_str("► ");
+        push_span(spans, width, "► ".to_string(), base_style);
     }
-    line.push_str(label);
+    push_span(spans, width, label.to_string(), base_style);
 
     if let Some(edit) = edit {
         // Caret sits within the buffer; digits/dots are width-1 so char count == cells.
-        let prefix_width = Span::raw(line.as_str()).width() as u16;
-        *caret_col = Some(prefix_width + edit.cursor as u16);
-        line.push_str(edit.buffer);
+        *caret_col = Some(*width + edit.cursor as u16);
+        push_span(spans, width, edit.buffer.to_string(), base_style);
         // Extra leading space so the block cursor doesn't sit flush against the unit.
-        line.push(' ');
-        line.push_str(unit);
+        push_span(spans, width, format!(" {}", unit), base_style);
+    } else if let Some(value) = value {
+        push_span(spans, width, value.to_string(), base_style);
     } else {
-        line.push_str(value);
+        push_span(spans, width, help.to_string(), placeholder_style());
     }
 }
 
@@ -301,34 +325,40 @@ fn render_running_section(
         format!("{:.1} miles covered for the month of {}", monthly_miles, month_name)
     };
 
-    let miles_value =
-        log.and_then(|l| l.miles_covered).map(|m| format!("{} mi", m)).unwrap_or_else(|| "Not set".to_string());
-    let elevation_value =
-        log.and_then(|l| l.elevation_gain).map(|e| format!("{} ft", e)).unwrap_or_else(|| "Not set".to_string());
+    let miles_value = log.and_then(|l| l.miles_covered).map(|m| format!("{} mi", m));
+    let elevation_value = log.and_then(|l| l.elevation_gain).map(|e| format!("{} ft", e));
 
-    let mut line = String::new();
+    let base = Style::default().fg(Color::LightRed);
+    let mut spans: Vec<Span> = Vec::new();
+    let mut width: u16 = 0;
     let mut caret_col: Option<u16> = None;
 
     push_field(
-        &mut line,
+        &mut spans,
         &mut caret_col,
+        &mut width,
+        base,
         marked_field.as_ref() == Some(&RunningField::Miles),
         "Miles: ",
         if editing_field == Some(RunningField::Miles) { edit } else { None },
-        &miles_value,
+        miles_value.as_deref(),
         " mi",
+        "Press 'm' to add",
     );
-    line.push_str(" | ");
+    push_span(&mut spans, &mut width, " | ".to_string(), base);
     push_field(
-        &mut line,
+        &mut spans,
         &mut caret_col,
+        &mut width,
+        base,
         marked_field.as_ref() == Some(&RunningField::Elevation),
         "Elevation: ",
         if editing_field == Some(RunningField::Elevation) { edit } else { None },
-        &elevation_value,
+        elevation_value.as_deref(),
         " ft",
+        "Press 'l' to add",
     );
-    line.push_str(&format!(" | {} | {}", yearly_text, monthly_text));
+    push_span(&mut spans, &mut width, format!(" | {} | {}", yearly_text, monthly_text), base);
 
     let border_style = if has_focus {
         Style::default().fg(Color::LightRed)
@@ -343,7 +373,7 @@ fn render_running_section(
         .padding(ratatui::widgets::Padding::horizontal(1));
     let inner = block.inner(area);
 
-    let running_widget = Paragraph::new(line).style(Style::default().fg(Color::LightRed)).block(block);
+    let running_widget = Paragraph::new(Line::from(spans)).block(block);
     f.render_widget(running_widget, area);
 
     if let Some(col) = caret_col {
