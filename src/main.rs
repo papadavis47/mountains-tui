@@ -22,6 +22,8 @@ use crate::app::App;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    handle_cli_args();
+
     let data_dir = config::data_dir()?;
 
     // One-time migration from .env to config.toml
@@ -42,6 +44,46 @@ async fn main() -> Result<()> {
 
     cleanup_terminal(&mut terminal)?;
     result
+}
+
+const HELP_TEXT: &str = concat!(
+    env!("CARGO_PKG_NAME"), " ", env!("CARGO_PKG_VERSION"), "\n",
+    "A terminal-based trail running and nutrition tracking application.\n",
+    "\n",
+    "USAGE:\n",
+    "    ", env!("CARGO_PKG_NAME"), " [OPTIONS]\n",
+    "\n",
+    "OPTIONS:\n",
+    "    -h, --help       Print this help message\n",
+    "    -V, --version    Print version information\n",
+    "\n",
+    "Run with no arguments to launch the interactive TUI.\n",
+    "Data is stored in ~/.mountains/ (database, config, markdown backups).\n",
+    "\n",
+    "Repository: https://github.com/papadavis47/mountains-tui",
+);
+
+/// Handles `--version`/`--help` flags before the TUI starts. Exits the process
+/// after printing; returns only when no recognized flag is present so the app
+/// can launch normally.
+fn handle_cli_args() {
+    for arg in std::env::args().skip(1) {
+        match arg.as_str() {
+            "-V" | "--version" => {
+                println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+                std::process::exit(0);
+            }
+            "-h" | "--help" => {
+                println!("{}", HELP_TEXT);
+                std::process::exit(0);
+            }
+            other => {
+                eprintln!("error: unrecognized argument '{}'\n", other);
+                eprintln!("{}", HELP_TEXT);
+                std::process::exit(2);
+            }
+        }
+    }
 }
 
 /// Enables raw mode and alternate screen for TUI
