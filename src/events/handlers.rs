@@ -676,4 +676,85 @@ mod tests {
             assert_eq!(result, Some(0));
         }
     }
+
+    mod section_navigator {
+        use super::*;
+
+        // Auto-advance after saving a single-value field: focus should step one
+        // field forward in entry order and wrap Notes -> Weight.
+        #[test]
+        fn test_advance_field_full_chain() {
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::Weight),
+                FocusedSection::Measurements {
+                    focused_field: MeasurementField::Waist
+                }
+            );
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::Waist),
+                FocusedSection::Running {
+                    focused_field: RunningField::Miles
+                }
+            );
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::Miles),
+                FocusedSection::Running {
+                    focused_field: RunningField::Elevation
+                }
+            );
+            // Elevation advances into the Food list (focus only, no dialog).
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::Elevation),
+                FocusedSection::FoodItems
+            );
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::StrengthMobility),
+                FocusedSection::Notes
+            );
+            // Notes wraps back to the top of the chain.
+            assert_eq!(
+                SectionNavigator::advance_field(FieldType::Notes),
+                FocusedSection::Measurements {
+                    focused_field: MeasurementField::Weight
+                }
+            );
+        }
+
+        // Empty save stays put: field_section maps each field to its own focus.
+        #[test]
+        fn test_field_section_stays_on_field() {
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::Weight),
+                FocusedSection::Measurements {
+                    focused_field: MeasurementField::Weight
+                }
+            );
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::Waist),
+                FocusedSection::Measurements {
+                    focused_field: MeasurementField::Waist
+                }
+            );
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::Miles),
+                FocusedSection::Running {
+                    focused_field: RunningField::Miles
+                }
+            );
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::Elevation),
+                FocusedSection::Running {
+                    focused_field: RunningField::Elevation
+                }
+            );
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::StrengthMobility),
+                FocusedSection::StrengthMobility
+            );
+            assert_eq!(
+                SectionNavigator::field_section(FieldType::Notes),
+                FocusedSection::Notes
+            );
+        }
+    }
 }
