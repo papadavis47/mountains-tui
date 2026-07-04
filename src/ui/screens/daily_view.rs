@@ -7,7 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
-use crate::miles_stats::{calculate_yearly_miles, calculate_monthly_miles};
+use crate::miles_stats::{calculate_monthly_miles, calculate_yearly_miles};
 use crate::models::field_accessor::FieldType;
 use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::{create_highlight_style, render_help, render_title};
@@ -112,7 +112,7 @@ pub fn render_daily_view_screen(
     let help_text = if edit.is_some() {
         " Editing — type value | Enter: Save | Esc: Cancel"
     } else {
-        " Shift+J/K: Section | Tab: Field | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back"
+        " Shift+J/K: Section | Tab: Toggle Num Fields | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back"
     };
     render_help(f, chunks[7], help_text, true, false);
 
@@ -163,10 +163,11 @@ fn render_measurements_section(
 
     // The field showing the ► marker: the edited field while editing, else the
     // section's focused field.
-    let marked_field: Option<MeasurementField> = editing_field.clone().or_else(|| match focused_section {
-        FocusedSection::Measurements { focused_field } => Some(focused_field.clone()),
-        _ => None,
-    });
+    let marked_field: Option<MeasurementField> =
+        editing_field.clone().or_else(|| match focused_section {
+            FocusedSection::Measurements { focused_field } => Some(focused_field.clone()),
+            _ => None,
+        });
 
     let weight_value = log.and_then(|l| l.weight).map(|w| format!("{} lbs", w));
     let waist_value = log.and_then(|l| l.waist).map(|w| format!("{} in", w));
@@ -183,7 +184,11 @@ fn render_measurements_section(
         base,
         marked_field.as_ref() == Some(&MeasurementField::Weight),
         "Weight: ",
-        if editing_field == Some(MeasurementField::Weight) { edit } else { None },
+        if editing_field == Some(MeasurementField::Weight) {
+            edit
+        } else {
+            None
+        },
         weight_value.as_deref(),
         " lbs",
         "Press 'w' to add",
@@ -196,7 +201,11 @@ fn render_measurements_section(
         base,
         marked_field.as_ref() == Some(&MeasurementField::Waist),
         "Waist Size: ",
-        if editing_field == Some(MeasurementField::Waist) { edit } else { None },
+        if editing_field == Some(MeasurementField::Waist) {
+            edit
+        } else {
+            None
+        },
         waist_value.as_deref(),
         " in",
         "Press 's' to add",
@@ -293,10 +302,11 @@ fn render_running_section(
     let section_focused = matches!(focused_section, FocusedSection::Running { .. });
     let has_focus = section_focused || editing_field.is_some();
 
-    let marked_field: Option<RunningField> = editing_field.clone().or_else(|| match focused_section {
-        FocusedSection::Running { focused_field } => Some(focused_field.clone()),
-        _ => None,
-    });
+    let marked_field: Option<RunningField> =
+        editing_field.clone().or_else(|| match focused_section {
+            FocusedSection::Running { focused_field } => Some(focused_field.clone()),
+            _ => None,
+        });
 
     let now = chrono::Local::now();
     let current_year = now.year();
@@ -318,15 +328,25 @@ fn render_running_section(
         _ => "Unknown",
     };
 
-    let yearly_text = format!("You have {:.1} miles covered for {}", yearly_miles, current_year);
+    let yearly_text = format!(
+        "You have {:.1} miles covered for {}",
+        yearly_miles, current_year
+    );
     let monthly_text = if monthly_miles == 0.0 {
         format!("No miles covered yet for the month of {}", month_name)
     } else {
-        format!("{:.1} miles covered for the month of {}", monthly_miles, month_name)
+        format!(
+            "{:.1} miles covered for the month of {}",
+            monthly_miles, month_name
+        )
     };
 
-    let miles_value = log.and_then(|l| l.miles_covered).map(|m| format!("{} mi", m));
-    let elevation_value = log.and_then(|l| l.elevation_gain).map(|e| format!("{} ft", e));
+    let miles_value = log
+        .and_then(|l| l.miles_covered)
+        .map(|m| format!("{} mi", m));
+    let elevation_value = log
+        .and_then(|l| l.elevation_gain)
+        .map(|e| format!("{} ft", e));
 
     let base = Style::default().fg(Color::LightRed);
     let mut spans: Vec<Span> = Vec::new();
@@ -340,7 +360,11 @@ fn render_running_section(
         base,
         marked_field.as_ref() == Some(&RunningField::Miles),
         "Miles: ",
-        if editing_field == Some(RunningField::Miles) { edit } else { None },
+        if editing_field == Some(RunningField::Miles) {
+            edit
+        } else {
+            None
+        },
         miles_value.as_deref(),
         " mi",
         "Press 'm' to add",
@@ -353,12 +377,21 @@ fn render_running_section(
         base,
         marked_field.as_ref() == Some(&RunningField::Elevation),
         "Elevation: ",
-        if editing_field == Some(RunningField::Elevation) { edit } else { None },
+        if editing_field == Some(RunningField::Elevation) {
+            edit
+        } else {
+            None
+        },
         elevation_value.as_deref(),
         " ft",
         "Press 'l' to add",
     );
-    push_span(&mut spans, &mut width, format!(" | {} | {}", yearly_text, monthly_text), base);
+    push_span(
+        &mut spans,
+        &mut width,
+        format!(" | {} | {}", yearly_text, monthly_text),
+        base,
+    );
 
     let border_style = if has_focus {
         Style::default().fg(Color::LightRed)
