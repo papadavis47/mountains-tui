@@ -1,6 +1,6 @@
 # Mountains
 
-## For Inspiration and Mindfulness
+## For Daily Mindfulness and Motivation
 
 ### A Trail Running Training Log
 

@@ -3,6 +3,7 @@ use crossterm::event::{Event, KeyCode};
 use ratatui::{Frame, Terminal, backend::CrosstermBackend, widgets::ListState};
 use std::io;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::RwLock;
 
@@ -27,6 +28,9 @@ pub struct App {
     config_url_buffer: String,
     config_token_buffer: String,
     config_sync_enabled: bool,
+    /// Set by the background cloud-sync task after it pulls from the primary,
+    /// signalling the event loop to reload the in-memory daily_logs cache.
+    needs_reload: Arc<AtomicBool>,
 }
 
 impl App {
@@ -46,10 +50,12 @@ impl App {
         state.daily_logs = db_manager.load_all_daily_logs().await?;
 
         let db_manager = Arc::new(RwLock::new(db_manager));
+        let needs_reload = Arc::new(AtomicBool::new(false));
 
         // Spawn background cloud sync only if config has valid credentials
         if config.sync.is_configured() {
             let db_manager_clone = Arc::clone(&db_manager);
+            let needs_reload_clone = Arc::clone(&needs_reload);
             let mountains_dir_clone = mountains_dir.clone();
             let url = config.sync.db_url.clone();
             let token = config.sync.auth_token.clone();
@@ -57,7 +63,14 @@ impl App {
                 let db_path = mountains_dir_clone.join("mountains.db");
                 if let Some(db_path_str) = db_path.to_str() {
                     let mut db = db_manager_clone.write().await;
-                    let _ = db.upgrade_to_remote_replica(db_path_str, url, token).await;
+                    if db
+                        .upgrade_to_remote_replica(db_path_str, url, token)
+                        .await
+                        .is_ok()
+                    {
+                        // Local replica now holds the pulled rows; ask the loop to reload.
+                        needs_reload_clone.store(true, Ordering::Release);
+                    }
                 }
             });
         }
@@ -76,6 +89,7 @@ impl App {
             config_url_buffer: String::new(),
             config_token_buffer: String::new(),
             config_sync_enabled: false,
+            needs_reload,
         })
     }
 
@@ -86,6 +100,7 @@ impl App {
     ) -> Result<()> {
         loop {
             self.update_sync_status().await;
+            self.reload_logs_if_needed().await?;
 
             // Handle syncing screen
             if matches!(self.state.current_screen, AppScreen::Syncing) {
@@ -1125,6 +1140,17 @@ impl App {
                 }
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    /// Reloads the daily_logs cache from the local replica once the background
+    /// cloud-sync task signals it has pulled new rows from the primary. Cheap
+    /// no-op on every other iteration; the local read only runs when flagged.
+    async fn reload_logs_if_needed(&mut self) -> Result<()> {
+        if self.needs_reload.swap(false, Ordering::AcqRel) {
+            let db = self.db_manager.read().await;
+            self.state.daily_logs = db.load_all_daily_logs().await?;
         }
         Ok(())
     }

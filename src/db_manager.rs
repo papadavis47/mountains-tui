@@ -94,6 +94,10 @@ impl DbManager {
                             self.init_schema().await?;
                         }
 
+                        // Pull anything written to the primary by other clients
+                        // (e.g. the web app) while we were away. Best-effort.
+                        let _ = self.db.sync().await;
+
                         *self.connection_state.write().await = ConnectionState::Connected;
                         Ok(())
                     }
@@ -335,7 +339,7 @@ impl DbManager {
         let _ = self.db.sync().await; // Ignore sync errors - best effort
     }
 
-    /// Periodic sync (called every 4 minutes by background task)
+    /// Explicit sync with Turso Cloud (called on shutdown)
     pub async fn sync_now(&self) -> Result<()> {
         // Only sync if we're connected to Turso
         let state = self.connection_state.read().await;
