@@ -1,6 +1,6 @@
 # Mountains
 
-## For Daily Mindfulness and Motivation
+## For Mindfulness and Motivation
 
 ### A Trail Running Training Log
 
@@ -17,7 +17,11 @@ Works offline-first with a local `libsql` database at `~/.mountains/`. Optional 
 Clone the repo and install locally:
 
 ```shell
+
 cargo install --path .
+
+# add --force if installing over an older version
+
 ```
 
 The `~/.mountains/` directory is created automatically on first run.

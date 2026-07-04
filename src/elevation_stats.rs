@@ -1,5 +1,5 @@
-use chrono::{Datelike, Local};
 use crate::models::DailyLog;
+use chrono::{Datelike, Local};
 
 const ELEVATION_THRESHOLD: i32 = 1000;
 
@@ -38,10 +38,8 @@ pub fn calculate_current_streak(logs: &[DailyLog]) -> Option<usize> {
 
     let most_recent_date = sorted_logs.first()?.date;
 
-    let most_recent_has_threshold = sorted_logs
-        .first()?
-        .elevation_gain
-        .unwrap_or(0) >= ELEVATION_THRESHOLD;
+    let most_recent_has_threshold =
+        sorted_logs.first()?.elevation_gain.unwrap_or(0) >= ELEVATION_THRESHOLD;
 
     if !most_recent_has_threshold {
         return None;
@@ -71,9 +69,12 @@ pub fn calculate_current_streak(logs: &[DailyLog]) -> Option<usize> {
 
 pub fn get_streak_message(logs: &[DailyLog]) -> String {
     if let Some(streak_count) = calculate_current_streak(logs) {
-        format!("You currently have {} consecutive days of 1000+ vert!", streak_count)
+        format!(
+            "You currently have {} consecutive days of 1000+ feet of vert!",
+            streak_count
+        )
     } else {
-        "Think about starting a streak of 1000+ feet of gain.".to_string()
+        "Consider starting a streak - 1000+ daily feet of gain".to_string()
     }
 }
 

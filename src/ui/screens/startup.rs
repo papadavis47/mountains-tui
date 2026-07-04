@@ -49,7 +49,7 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
     // Add subtitle
     content_lines.push(Line::from(""));
     content_lines.push(Line::from(Span::styled(
-        "For Inspiration and Mindfulness",
+        "For mindfulness and motivation on the trails",
         Style::default()
             .fg(Color::Yellow)
             .add_modifier(Modifier::ITALIC),
@@ -61,7 +61,7 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
 
     // Add monthly statistic
     let monthly_text = format!(
-        "You have {} days of 1000+ feet vert in the month of {}.",
+        "You have {} days of 1000+ feet of vert in the month of {}",
         monthly_count, month_name
     );
     content_lines.push(Line::from(Span::styled(
@@ -71,7 +71,7 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
 
     // Add yearly statistic
     content_lines.push(Line::from(""));
-    let yearly_text = format!("You have {} feet for {}.", yearly_total, year);
+    let yearly_text = format!("You have {} feet for {}", yearly_total, year);
     content_lines.push(Line::from(Span::styled(
         yearly_text,
         Style::default().fg(Color::White),
@@ -92,5 +92,11 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
     f.render_widget(content, chunks[1]);
 
     // Render help text without border for clean appearance, centered horizontally
-    render_help(f, chunks[2], " n: Today's Log | l: Log List | a: Add Past Entry | c: Cloud Sync | q: Quit ", false, true);
+    render_help(
+        f,
+        chunks[2],
+        " n: Today's Log | l: Log List | a: Add Past Entry | c: Cloud Sync | q: Quit ",
+        false,
+        true,
+    );
 }
