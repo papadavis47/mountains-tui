@@ -235,12 +235,24 @@ impl App {
                     self.input_handler.insert_newline();
                 } else {
                     // Save and exit
+                    let entered = !self.input_handler.input_buffer.trim().is_empty();
                     let log = ActionHandler::update_field(
                         &mut self.state,
                         field_type,
                         self.input_handler.input_buffer.clone(),
                     );
                     self.input_handler.clear();
+
+                    // After entering data, move focus to the next field so entry
+                    // flows top-to-bottom without manual Shift+J. An empty save
+                    // stays put. Focus-only — the next field isn't auto-opened.
+                    self.state.focused_section = if entered {
+                        SectionNavigator::advance_field(field_type)
+                    } else {
+                        SectionNavigator::field_section(field_type)
+                    };
+                    self.state.strength_mobility_scroll = 0;
+                    self.state.notes_scroll = 0;
                     self.state.current_screen = AppScreen::DailyView;
 
                     let db_manager = Arc::clone(&self.db_manager);

@@ -331,6 +331,50 @@ impl SectionNavigator {
         }
     }
 
+    /// Section/field to focus after a single-value field is saved with data,
+    /// stepping one field forward in entry order and wrapping Notes → Weight.
+    /// Food/Sokay are focus-only landing spots (their add-dialogs handle repeat
+    /// entry), so nothing auto-opens here.
+    pub fn advance_field(field: FieldType) -> FocusedSection {
+        match field {
+            FieldType::Weight => FocusedSection::Measurements {
+                focused_field: MeasurementField::Waist,
+            },
+            FieldType::Waist => FocusedSection::Running {
+                focused_field: RunningField::Miles,
+            },
+            FieldType::Miles => FocusedSection::Running {
+                focused_field: RunningField::Elevation,
+            },
+            FieldType::Elevation => FocusedSection::FoodItems,
+            FieldType::StrengthMobility => FocusedSection::Notes,
+            FieldType::Notes => FocusedSection::Measurements {
+                focused_field: MeasurementField::Weight,
+            },
+        }
+    }
+
+    /// The field's own section focus, used to keep focus put when a save leaves
+    /// the value empty (no advance).
+    pub fn field_section(field: FieldType) -> FocusedSection {
+        match field {
+            FieldType::Weight => FocusedSection::Measurements {
+                focused_field: MeasurementField::Weight,
+            },
+            FieldType::Waist => FocusedSection::Measurements {
+                focused_field: MeasurementField::Waist,
+            },
+            FieldType::Miles => FocusedSection::Running {
+                focused_field: RunningField::Miles,
+            },
+            FieldType::Elevation => FocusedSection::Running {
+                focused_field: RunningField::Elevation,
+            },
+            FieldType::StrengthMobility => FocusedSection::StrengthMobility,
+            FieldType::Notes => FocusedSection::Notes,
+        }
+    }
+
     pub fn toggle_internal_focus(current: &FocusedSection) -> FocusedSection {
         match current {
             FocusedSection::Measurements { focused_field } => {
