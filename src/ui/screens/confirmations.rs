@@ -41,7 +41,7 @@ pub fn render_confirm_delete_day_screen(f: &mut Frame, selected_date: NaiveDate)
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(warning_widget, chunks[1]);
 
-    render_help(f, chunks[2], "y: Delete Day | n/Esc: Cancel", true, false);
+    render_help(f, chunks[2], &["y: Delete Day | n/Esc: Cancel"], true, false);
 }
 
 /// Renders the delete food item confirmation dialog as a centered modal

@@ -379,3 +379,141 @@ pub fn calculate_cursor_in_wrapped_text(
 
     (cursor_x, cursor_y)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::layout::Rect;
+
+    // -- wrap_at_width -------------------------------------------------------
+
+    #[test]
+    fn wrap_width_zero_returns_input_unchanged() {
+        assert_eq!(wrap_at_width("abc def", 0), "abc def");
+    }
+
+    #[test]
+    fn wrap_empty_string_stays_empty() {
+        assert_eq!(wrap_at_width("", 10), "");
+    }
+
+    #[test]
+    fn wrap_text_that_fits_is_unchanged_and_single_line() {
+        let wrapped = wrap_at_width("hello", 10);
+        assert_eq!(wrapped, "hello");
+        assert!(!wrapped.contains('\n'));
+    }
+
+    #[test]
+    fn wrap_preserves_explicit_newline() {
+        assert_eq!(wrap_at_width("a\nb", 10), "a\nb");
+    }
+
+    #[test]
+    fn wrap_preserves_blank_line_between_newlines() {
+        assert_eq!(wrap_at_width("a\n\nb", 10), "a\n\nb");
+    }
+
+    #[test]
+    fn wrap_hard_breaks_word_longer_than_width() {
+        // No spaces to break on, so the word is split at exactly `width` chars.
+        assert_eq!(wrap_at_width("abcdefgh", 3), "abc\ndef\ngh");
+    }
+
+    #[test]
+    fn wrap_no_rendered_line_exceeds_width() {
+        // Property: for varied inputs, every produced line fits within `width`.
+        let width = 7;
+        for input in ["aaa bbb ccc", "the quick brown fox jumped", "abcdefghij k"] {
+            for line in wrap_at_width(input, width).split('\n') {
+                assert!(
+                    line.chars().count() <= width,
+                    "line {line:?} exceeds width {width} for input {input:?}"
+                );
+            }
+        }
+    }
+
+    // -- calculate_cursor_in_wrapped_text ------------------------------------
+
+    fn origin(w: u16, h: u16) -> Rect {
+        Rect { x: 0, y: 0, width: w, height: h }
+    }
+
+    #[test]
+    fn cursor_width_zero_returns_area_origin() {
+        let area = Rect { x: 5, y: 7, width: 20, height: 4 };
+        assert_eq!(calculate_cursor_in_wrapped_text(area, "hello", 3, 0), (5, 7));
+    }
+
+    #[test]
+    fn cursor_at_start_is_top_left() {
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "hello world", 0, 10),
+            (0, 0)
+        );
+    }
+
+    #[test]
+    fn cursor_mid_line_tracks_column() {
+        // Byte 6 == just after "hello " on a line wide enough not to wrap.
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "hello world", 6, 20),
+            (6, 0)
+        );
+    }
+
+    #[test]
+    fn cursor_at_end_of_single_line() {
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "hello world", 11, 20),
+            (11, 0)
+        );
+    }
+
+    #[test]
+    fn cursor_after_newline_moves_to_next_line() {
+        // Cursor on 'b' (byte 2) sits at the start of line 1.
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "a\nb", 2, 10),
+            (0, 1)
+        );
+    }
+
+    #[test]
+    fn cursor_on_wrapped_line() {
+        // "aaa bbb" at width 4 wraps to "aaa \nbbb"; cursor at end is line 1 col 3.
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "aaa bbb", 7, 4),
+            (3, 1)
+        );
+    }
+
+    #[test]
+    fn cursor_offset_applies_area_origin() {
+        let area = Rect { x: 4, y: 2, width: 20, height: 4 };
+        assert_eq!(calculate_cursor_in_wrapped_text(area, "hello", 5, 20), (9, 2));
+    }
+
+    #[test]
+    fn cursor_handles_multibyte_chars_without_panicking() {
+        // "café": é is 2 bytes, so byte 5 == 4 chars. Column is char-based, not byte.
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "café", 5, 10),
+            (4, 0)
+        );
+        // Cursor between "ca" and "fé" (byte 2) lands at column 2.
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "café", 2, 10),
+            (2, 0)
+        );
+    }
+
+    #[test]
+    fn cursor_byte_past_end_clamps_to_text_end() {
+        assert_eq!(
+            calculate_cursor_in_wrapped_text(origin(20, 4), "ab", 999, 10),
+            (2, 0)
+        );
+    }
+}

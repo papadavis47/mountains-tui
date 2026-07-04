@@ -95,7 +95,11 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
     render_help(
         f,
         chunks[2],
-        " n: Today's Log | l: Log List | a: Add Past Entry | c: Cloud Sync | q: Quit ",
+        &[
+            " n: Today's Log | l: Log List | a: Add Past Entry | c: Cloud Sync | q: Quit ",
+            " n: Today | l: List | a: Add | c: Cloud | q: Quit ",
+            " n: Today | l: List | a: Add | q: Quit ",
+        ],
         false,
         true,
     );

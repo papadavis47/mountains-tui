@@ -109,12 +109,20 @@ pub fn render_daily_view_screen(
         &state.focused_section,
     );
 
-    let help_text = if edit.is_some() {
-        " Editing — type value | Enter: Save | Esc: Cancel"
+    let help_tiers: &[&str] = if edit.is_some() {
+        &[
+            " Editing — type value | Enter: Save | Esc: Cancel",
+            " Enter: Save | Esc: Cancel",
+        ]
     } else {
-        " Shift+J/K: Section | Tab: Toggle Num Fields | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back"
+        &[
+            " Shift+J/K: Section | Tab: Toggle Num Fields | Enter: Add | j/k: List | e: Edit Item | d: Delete Item | Space: Shortcuts | S: Startup Screen | Esc: Back",
+            " Shift+J/K: Section | Tab: Fields | Enter: Add | j/k: List | e: Edit | d: Delete | Space: Shortcuts | S: Startup | Esc: Back",
+            " Shift+J/K: Section | Enter: Add | e: Edit | d: Delete | Space: More | Esc: Back",
+            " Space: Shortcuts | Esc: Back",
+        ]
     };
-    render_help(f, chunks[7], help_text, true, false);
+    render_help(f, chunks[7], help_tiers, true, false);
 
     // Render expanded overlay for multi-line sections when focused
     match &state.focused_section {
