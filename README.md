@@ -26,9 +26,9 @@ Clone the repo and install locally:
 
 ```shell
 
-git clone git@github.com:papadavis47/mountains-tui.git
+git clone git@github.com:papadavis47/mountains.git
 
-cd mountains-tui
+cd mountains
 
 cargo install --path .
 
