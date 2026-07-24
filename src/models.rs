@@ -96,6 +96,7 @@ pub enum DeleteTarget {
 #[derive(Debug, Clone)]
 pub enum AppScreen {
     Startup,
+    Statistics,
     Home,
     DailyView,
     AddFood,

@@ -6,6 +6,12 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Padding, Paragraph},
 };
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct HelpRegion {
+    pub key: String,
+    pub area: Rect,
+}
+
 pub fn create_title_style() -> Style {
     Style::default()
         .fg(Color::Green)
@@ -33,15 +39,13 @@ pub fn create_standard_layout(area: Rect) -> std::rc::Rc<[Rect]> {
 }
 
 pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
-    let title_widget = Paragraph::new(title)
-        .style(create_title_style())
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Rgb(255, 165, 0)))
-                .padding(Padding::uniform(1))
-        );
+    let title_widget = Paragraph::new(title).style(create_title_style()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(Color::Rgb(255, 165, 0)))
+            .padding(Padding::uniform(1)),
+    );
     f.render_widget(title_widget, area);
 }
 
@@ -51,7 +55,13 @@ pub fn render_title(f: &mut Frame, area: Rect, title: &str) {
 /// the widest one whose rendered width fits the (border-adjusted) area is shown,
 /// so the footer never truncates on narrow/split terminals. The last tier is the
 /// guaranteed fallback when even it overflows.
-pub fn render_help(f: &mut Frame, area: Rect, tiers: &[&str], show_border: bool, centered: bool) {
+pub fn render_help(
+    f: &mut Frame,
+    area: Rect,
+    tiers: &[&str],
+    show_border: bool,
+    centered: bool,
+) -> Vec<HelpRegion> {
     let available = if show_border {
         area.width.saturating_sub(2)
     } else {
@@ -73,6 +83,18 @@ pub fn render_help(f: &mut Frame, area: Rect, tiers: &[&str], show_border: bool,
     }
 
     f.render_widget(help_widget, area);
+
+    let content_area = if show_border {
+        Rect::new(
+            area.x.saturating_add(1),
+            area.y.saturating_add(1),
+            area.width.saturating_sub(2),
+            area.height.saturating_sub(2),
+        )
+    } else {
+        area
+    };
+    build_help_regions(choose_help_tier(tiers, available), content_area, centered)
 }
 
 /// Picks the widest tier whose rendered width fits `available`, falling back to
@@ -88,10 +110,7 @@ fn choose_help_tier<'a>(tiers: &[&'a str], available: usize) -> &'a str {
 
 /// Rendered display width of a help string once styled into spans.
 fn help_line_width(help_text: &str) -> usize {
-    build_help_spans(help_text)
-        .iter()
-        .map(|s| s.width())
-        .sum()
+    build_help_spans(help_text).iter().map(|s| s.width()).sum()
 }
 
 /// Parses a `key: desc | key: desc` help string into styled spans.
@@ -115,24 +134,54 @@ fn build_help_spans(help_text: &str) -> Vec<Span<'static>> {
             // Key in yellow
             spans.push(Span::styled(
                 key_part.to_string(),
-                Style::default().fg(Color::Yellow)
+                Style::default().fg(Color::Yellow),
             ));
 
             // Colon and description in white
             spans.push(Span::styled(
                 format!(": {}", desc_part),
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::White),
             ));
         } else {
             // If no colon, just display in white
             spans.push(Span::styled(
                 trimmed.to_string(),
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::White),
             ));
         }
     }
 
     spans
+}
+
+fn build_help_regions(help_text: &str, area: Rect, centered: bool) -> Vec<HelpRegion> {
+    let line_width = help_line_width(help_text) as u16;
+    let mut x = area.x;
+    if centered {
+        x = x.saturating_add(area.width.saturating_sub(line_width) / 2);
+    }
+
+    let mut regions = Vec::new();
+    for (index, segment) in help_text.split('|').enumerate() {
+        if index > 0 {
+            x = x.saturating_add(3);
+        }
+
+        let trimmed = segment.trim();
+        let width = Span::raw(trimmed).width() as u16;
+        if let Some(colon_pos) = trimmed.find(':') {
+            let key = trimmed[..colon_pos].trim();
+            let region = Rect::new(x, area.y, width, 1).intersection(area);
+            if !key.is_empty() && region.width > 0 && region.height > 0 {
+                regions.push(HelpRegion {
+                    key: key.to_string(),
+                    area: region,
+                });
+            }
+        }
+        x = x.saturating_add(width);
+    }
+    regions
 }
 
 pub fn format_input_with_cursor(input: &str) -> String {
@@ -201,5 +250,24 @@ mod tests {
         // spacing, so measured width tracks the displayed line, not the raw source.
         assert_eq!(help_line_width("Esc: Back"), 9);
         assert_eq!(help_line_width("a: A | b: B"), 11);
+    }
+
+    #[test]
+    fn help_regions_follow_centered_rendered_segments() {
+        let regions = build_help_regions("a: Add | q: Quit", Rect::new(10, 5, 30, 1), true);
+
+        assert_eq!(
+            regions,
+            vec![
+                HelpRegion {
+                    key: "a".to_string(),
+                    area: Rect::new(17, 5, 6, 1),
+                },
+                HelpRegion {
+                    key: "q".to_string(),
+                    area: Rect::new(26, 5, 7, 1),
+                },
+            ]
+        );
     }
 }

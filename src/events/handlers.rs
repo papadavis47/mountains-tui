@@ -1,8 +1,8 @@
 use crate::db_manager::DbManager;
 use crate::file_manager::FileManager;
 use crate::models::{
-    field_accessor::FieldType, AppScreen, AppState, DailyLog, FocusedSection, FoodEntry,
-    MeasurementField, RunningField,
+    AppScreen, AppState, DailyLog, FocusedSection, FoodEntry, MeasurementField, RunningField,
+    field_accessor::FieldType,
 };
 use crossterm::event::{KeyCode, KeyModifiers};
 use std::sync::Arc;
@@ -441,10 +441,7 @@ impl NavigationHandler {
 pub struct ActionHandler;
 
 impl ActionHandler {
-    pub fn save_food_entry(
-        state: &mut AppState,
-        food_name: String,
-    ) -> Option<DailyLog> {
+    pub fn save_food_entry(state: &mut AppState, food_name: String) -> Option<DailyLog> {
         if !food_name.is_empty() {
             let food_entry = FoodEntry::new(food_name);
             let log = state.get_or_create_daily_log(state.selected_date);
@@ -475,25 +472,24 @@ impl ActionHandler {
                 .daily_logs
                 .iter_mut()
                 .find(|log| log.date == state.selected_date)
-                && food_index < log.food_entries.len() {
-                    log.food_entries[food_index].name = new_name;
-                    return Some(log.clone());
-                }
+            && food_index < log.food_entries.len()
+        {
+            log.food_entries[food_index].name = new_name;
+            return Some(log.clone());
+        }
         None
     }
 
-    pub fn delete_food_entry(
-        state: &mut AppState,
-        food_index: usize,
-    ) -> Option<DailyLog> {
+    pub fn delete_food_entry(state: &mut AppState, food_index: usize) -> Option<DailyLog> {
         if let Some(log) = state
             .daily_logs
             .iter_mut()
             .find(|log| log.date == state.selected_date)
-            && food_index < log.food_entries.len() {
-                log.remove_food_entry(food_index);
-                return Some(log.clone());
-            }
+            && food_index < log.food_entries.len()
+        {
+            log.remove_food_entry(food_index);
+            return Some(log.clone());
+        }
         None
     }
 
@@ -520,40 +516,14 @@ impl ActionHandler {
 
     pub fn start_edit_food(state: &AppState, food_index: usize) -> Option<String> {
         if let Some(log) = state.get_daily_log(state.selected_date)
-            && food_index < log.food_entries.len() {
-                return Some(log.food_entries[food_index].name.clone());
-            }
+            && food_index < log.food_entries.len()
+        {
+            return Some(log.food_entries[food_index].name.clone());
+        }
         None
     }
 
-    pub fn start_edit_weight(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::Weight)
-    }
-
-    pub fn start_edit_waist(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::Waist)
-    }
-
-    pub fn start_edit_strength_mobility(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::StrengthMobility)
-    }
-
-    pub fn start_edit_notes(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::Notes)
-    }
-
-    pub fn start_edit_miles(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::Miles)
-    }
-
-    pub fn start_edit_elevation(state: &AppState) -> String {
-        Self::start_edit_field(state, FieldType::Elevation)
-    }
-
-    pub fn save_sokay_entry(
-        state: &mut AppState,
-        sokay_text: String,
-    ) -> Option<DailyLog> {
+    pub fn save_sokay_entry(state: &mut AppState, sokay_text: String) -> Option<DailyLog> {
         if !sokay_text.is_empty() {
             let log = state.get_or_create_daily_log(state.selected_date);
             log.add_sokay_entry(sokay_text);
@@ -572,33 +542,33 @@ impl ActionHandler {
                 .daily_logs
                 .iter_mut()
                 .find(|log| log.date == state.selected_date)
-                && sokay_index < log.sokay_entries.len() {
-                    log.sokay_entries[sokay_index] = new_text;
-                    return Some(log.clone());
-                }
+            && sokay_index < log.sokay_entries.len()
+        {
+            log.sokay_entries[sokay_index] = new_text;
+            return Some(log.clone());
+        }
         None
     }
 
-    pub fn delete_sokay_entry(
-        state: &mut AppState,
-        sokay_index: usize,
-    ) -> Option<DailyLog> {
+    pub fn delete_sokay_entry(state: &mut AppState, sokay_index: usize) -> Option<DailyLog> {
         if let Some(log) = state
             .daily_logs
             .iter_mut()
             .find(|log| log.date == state.selected_date)
-            && sokay_index < log.sokay_entries.len() {
-                log.remove_sokay_entry(sokay_index);
-                return Some(log.clone());
-            }
+            && sokay_index < log.sokay_entries.len()
+        {
+            log.remove_sokay_entry(sokay_index);
+            return Some(log.clone());
+        }
         None
     }
 
     pub fn start_edit_sokay(state: &AppState, sokay_index: usize) -> Option<String> {
         if let Some(log) = state.get_daily_log(state.selected_date)
-            && sokay_index < log.sokay_entries.len() {
-                return Some(log.sokay_entries[sokay_index].clone());
-            }
+            && sokay_index < log.sokay_entries.len()
+        {
+            return Some(log.sokay_entries[sokay_index].clone());
+        }
         None
     }
 

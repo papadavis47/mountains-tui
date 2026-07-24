@@ -11,18 +11,23 @@ use crate::elevation_stats::{
 };
 use crate::models::AppState;
 use crate::ui::components::{create_standard_layout, render_help};
+use crate::ui::{ClickAction, ClickTarget};
 
 /// Renders the startup screen with ASCII art and elevation statistics
-pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
+pub fn render_startup_screen(
+    f: &mut Frame,
+    state: &AppState,
+    click_targets: Option<&mut Vec<ClickTarget>>,
+) {
     let chunks = create_standard_layout(f.area());
 
     // Calculate statistics
-    let monthly_count = count_monthly_1000_days(&state.daily_logs);
-    let yearly_total = calculate_yearly_elevation(&state.daily_logs);
+    let now = chrono::Local::now().date_naive();
+    let monthly_count = count_monthly_1000_days(&state.daily_logs, now);
+    let yearly_total = calculate_yearly_elevation(&state.daily_logs, now);
     let streak_message = get_streak_message(&state.daily_logs);
 
     // Get current month name and year
-    let now = chrono::Local::now().date_naive();
     let month_name = now.format("%B").to_string();
     let year = now.format("%Y").to_string();
 
@@ -92,15 +97,62 @@ pub fn render_startup_screen(f: &mut Frame, state: &AppState) {
     f.render_widget(content, chunks[1]);
 
     // Render help text without border for clean appearance, centered horizontally
-    render_help(
+    let help_regions = render_help(
         f,
         chunks[2],
         &[
-            " n: Today's Log | l: Log List | a: Add Past Entry | c: Cloud Sync | q: Quit ",
-            " n: Today | l: List | a: Add | c: Cloud | q: Quit ",
-            " n: Today | l: List | a: Add | q: Quit ",
+            " n: Today's Log | l: Log List | a: Add Past Entry | s: Statistics | c: Cloud Sync | q: Quit ",
+            " n: Today | l: List | s: Stats | a: Add | q: Quit ",
+            " n: Today | s: Stats | q: Quit ",
         ],
         false,
         true,
     );
+
+    if let Some(click_targets) = click_targets {
+        for region in help_regions {
+            let action = match region.key.as_str() {
+                "n" => Some(ClickAction::StartupToday),
+                "l" => Some(ClickAction::StartupLogs),
+                "a" => Some(ClickAction::StartupAddDate),
+                "s" => Some(ClickAction::OpenStatistics),
+                "c" => Some(ClickAction::OpenCloudSync),
+                "q" => Some(ClickAction::Quit),
+                _ => None,
+            };
+            if let Some(action) = action {
+                click_targets.push(ClickTarget::new(region.area, action));
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::{Terminal, backend::TestBackend};
+
+    fn rendered_targets(width: u16) -> Vec<ClickTarget> {
+        let backend = TestBackend::new(width, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut targets = Vec::new();
+        terminal
+            .draw(|frame| {
+                render_startup_screen(frame, &AppState::new(), Some(&mut targets));
+            })
+            .unwrap();
+        targets
+    }
+
+    #[test]
+    fn statistics_is_clickable_in_wide_and_narrow_footer_tiers() {
+        for width in [120, 40] {
+            let targets = rendered_targets(width);
+            assert!(
+                targets
+                    .iter()
+                    .any(|target| target.action == ClickAction::OpenStatistics)
+            );
+        }
+    }
 }

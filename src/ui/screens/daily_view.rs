@@ -11,6 +11,7 @@ use crate::miles_stats::{calculate_monthly_miles, calculate_yearly_miles};
 use crate::models::field_accessor::FieldType;
 use crate::models::{AppState, DailyLog, FocusedSection, MeasurementField, RunningField};
 use crate::ui::components::{create_highlight_style, render_help, render_title};
+use crate::ui::{ClickAction, ClickTarget};
 
 /// Active in-place edit of a numeric field, rendered directly inside its section
 /// row (Measurements / Running) instead of in a popup modal.
@@ -28,7 +29,9 @@ pub fn render_daily_view_screen(
     sokay_list_state: &mut ListState,
     sync_status: &str,
     edit: Option<InPlaceEdit>,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
+    let mut click_targets = click_targets;
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -58,10 +61,12 @@ pub fn render_daily_view_screen(
         &state.daily_logs,
         &state.focused_section,
         edit.as_ref(),
+        click_targets.as_deref_mut(),
     );
 
-    let yearly_miles = calculate_yearly_miles(&state.daily_logs);
-    let monthly_miles = calculate_monthly_miles(&state.daily_logs);
+    let today = chrono::Local::now().date_naive();
+    let yearly_miles = calculate_yearly_miles(&state.daily_logs, today);
+    let monthly_miles = calculate_monthly_miles(&state.daily_logs, today);
     render_running_section(
         f,
         chunks[2],
@@ -71,6 +76,7 @@ pub fn render_daily_view_screen(
         yearly_miles,
         monthly_miles,
         edit.as_ref(),
+        click_targets.as_deref_mut(),
     );
 
     render_food_list_section(
@@ -81,6 +87,7 @@ pub fn render_daily_view_screen(
         food_list_state,
         &state.focused_section,
         state.food_list_focused,
+        click_targets.as_deref_mut(),
     );
 
     render_sokay_section(
@@ -91,6 +98,7 @@ pub fn render_daily_view_screen(
         sokay_list_state,
         &state.focused_section,
         state.sokay_list_focused,
+        click_targets.as_deref_mut(),
     );
 
     render_strength_mobility_section(
@@ -99,6 +107,7 @@ pub fn render_daily_view_screen(
         state.selected_date,
         &state.daily_logs,
         &state.focused_section,
+        click_targets.as_deref_mut(),
     );
 
     render_notes_section(
@@ -107,6 +116,7 @@ pub fn render_daily_view_screen(
         state.selected_date,
         &state.daily_logs,
         &state.focused_section,
+        click_targets.as_deref_mut(),
     );
 
     let help_tiers: &[&str] = if edit.is_some() {
@@ -133,6 +143,7 @@ pub fn render_daily_view_screen(
                 state.selected_date,
                 &state.daily_logs,
                 state.strength_mobility_scroll,
+                click_targets.as_deref_mut(),
             );
         }
         FocusedSection::Notes => {
@@ -142,6 +153,7 @@ pub fn render_daily_view_screen(
                 state.selected_date,
                 &state.daily_logs,
                 state.notes_scroll,
+                click_targets.as_deref_mut(),
             );
         }
         _ => {}
@@ -156,6 +168,7 @@ fn render_measurements_section(
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
     edit: Option<&InPlaceEdit>,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -185,7 +198,7 @@ fn render_measurements_section(
     let mut width: u16 = 0;
     let mut caret_col: Option<u16> = None;
 
-    push_field(
+    let weight_region = push_field(
         &mut spans,
         &mut caret_col,
         &mut width,
@@ -202,7 +215,7 @@ fn render_measurements_section(
         "Press 'w' to add",
     );
     push_span(&mut spans, &mut width, " | ".to_string(), base);
-    push_field(
+    let waist_region = push_field(
         &mut spans,
         &mut caret_col,
         &mut width,
@@ -234,6 +247,11 @@ fn render_measurements_section(
 
     let measurements_widget = Paragraph::new(Line::from(spans)).block(block);
     f.render_widget(measurements_widget, area);
+
+    if let Some(click_targets) = click_targets {
+        push_field_target(click_targets, inner, weight_region, FieldType::Weight);
+        push_field_target(click_targets, inner, waist_region, FieldType::Waist);
+    }
 
     if let Some(col) = caret_col {
         f.set_cursor_position((inner.x + col, inner.y));
@@ -269,7 +287,8 @@ fn push_field(
     value: Option<&str>,
     unit: &str,
     help: &str,
-) {
+) -> (u16, u16) {
+    let start = *width;
     if marked {
         push_span(spans, width, "► ".to_string(), base_style);
     }
@@ -286,6 +305,21 @@ fn push_field(
     } else {
         push_span(spans, width, help.to_string(), placeholder_style());
     }
+    (start, width.saturating_sub(start))
+}
+
+fn push_field_target(
+    click_targets: &mut Vec<ClickTarget>,
+    inner: ratatui::layout::Rect,
+    (start, width): (u16, u16),
+    field: FieldType,
+) {
+    let area =
+        ratatui::layout::Rect::new(inner.x.saturating_add(start), inner.y, width, inner.height)
+            .intersection(inner);
+    if area.width > 0 && area.height > 0 {
+        click_targets.push(ClickTarget::new(area, ClickAction::EditField(field)));
+    }
 }
 
 /// Renders the running activity display section
@@ -298,6 +332,7 @@ fn render_running_section(
     yearly_miles: f32,
     monthly_miles: f32,
     edit: Option<&InPlaceEdit>,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -361,7 +396,7 @@ fn render_running_section(
     let mut width: u16 = 0;
     let mut caret_col: Option<u16> = None;
 
-    push_field(
+    let miles_region = push_field(
         &mut spans,
         &mut caret_col,
         &mut width,
@@ -378,7 +413,7 @@ fn render_running_section(
         "Press 'm' to add",
     );
     push_span(&mut spans, &mut width, " | ".to_string(), base);
-    push_field(
+    let elevation_region = push_field(
         &mut spans,
         &mut caret_col,
         &mut width,
@@ -417,6 +452,11 @@ fn render_running_section(
     let running_widget = Paragraph::new(Line::from(spans)).block(block);
     f.render_widget(running_widget, area);
 
+    if let Some(click_targets) = click_targets {
+        push_field_target(click_targets, inner, miles_region, FieldType::Miles);
+        push_field_target(click_targets, inner, elevation_region, FieldType::Elevation);
+    }
+
     if let Some(col) = caret_col {
         f.set_cursor_position((inner.x + col, inner.y));
     }
@@ -431,8 +471,10 @@ fn render_food_list_section(
     food_list_state: &mut ListState,
     focused_section: &FocusedSection,
     food_list_focused: bool,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
+    let entry_count = log.map_or(0, |log| log.food_entries.len());
 
     let items: Vec<ListItem> = if let Some(log) = log {
         if log.food_entries.is_empty() {
@@ -463,16 +505,30 @@ fn render_food_list_section(
             Style::default()
         };
 
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title("Food Items")
+        .padding(ratatui::widgets::Padding::uniform(1));
+    let inner = block.inner(area);
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title("Food Items")
-                .padding(ratatui::widgets::Padding::uniform(1)),
-        )
+        .block(block)
         .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, food_list_state);
+
+    if let Some(click_targets) = click_targets {
+        if entry_count == 0 {
+            click_targets.push(ClickTarget::new(inner, ClickAction::AddFood));
+        } else {
+            push_visible_list_targets(
+                click_targets,
+                inner,
+                food_list_state.offset(),
+                entry_count,
+                ClickAction::SelectFood,
+            );
+        }
+    }
 }
 
 /// Renders the sokay display section
@@ -484,8 +540,10 @@ fn render_sokay_section(
     sokay_list_state: &mut ListState,
     focused_section: &FocusedSection,
     sokay_list_focused: bool,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
+    let entry_count = log.map_or(0, |log| log.sokay_entries.len());
 
     // Calculate cumulative sokay count up to selected date
     let cumulative_sokay = crate::events::handlers::ActionHandler::calculate_cumulative_sokay(
@@ -538,16 +596,49 @@ fn render_sokay_section(
         Style::default()
     };
 
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title(title)
+        .padding(ratatui::widgets::Padding::uniform(1));
+    let inner = block.inner(area);
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title(title)
-                .padding(ratatui::widgets::Padding::uniform(1)),
-        )
+        .block(block)
         .highlight_style(highlight_style);
     f.render_stateful_widget(list, area, sokay_list_state);
+
+    if let Some(click_targets) = click_targets {
+        if entry_count == 0 {
+            click_targets.push(ClickTarget::new(inner, ClickAction::AddSokay));
+        } else {
+            push_visible_list_targets(
+                click_targets,
+                inner,
+                sokay_list_state.offset(),
+                entry_count,
+                ClickAction::SelectSokay,
+            );
+        }
+    }
+}
+
+fn push_visible_list_targets(
+    click_targets: &mut Vec<ClickTarget>,
+    inner: ratatui::layout::Rect,
+    offset: usize,
+    item_count: usize,
+    action: fn(usize) -> ClickAction,
+) {
+    for row in 0..inner.height as usize {
+        let index = offset + row;
+        if index >= item_count {
+            break;
+        }
+        click_targets.push(ClickTarget::new(
+            ratatui::layout::Rect::new(inner.x, inner.y + row as u16, inner.width, 1),
+            action(index),
+        ));
+    }
 }
 
 /// Renders the strength & mobility display section
@@ -557,6 +648,7 @@ fn render_strength_mobility_section(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -582,17 +674,20 @@ fn render_strength_mobility_section(
         Style::default().fg(Color::DarkGray)
     };
 
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title("Strength & Mobility")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+    let inner = block.inner(area);
     let sm_widget = Paragraph::new(sm_text)
         .style(Style::default().fg(Color::Cyan))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title("Strength & Mobility")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
-        )
+        .block(block)
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(sm_widget, area);
+    if let Some(click_targets) = click_targets {
+        click_targets.push(ClickTarget::new(inner, ClickAction::StrengthMobility));
+    }
 }
 
 /// Renders the notes display section
@@ -602,6 +697,7 @@ fn render_notes_section(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     focused_section: &FocusedSection,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -627,17 +723,20 @@ fn render_notes_section(
         Style::default().fg(Color::DarkGray)
     };
 
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title("Notes")
+        .padding(ratatui::widgets::Padding::horizontal(1));
+    let inner = block.inner(area);
     let notes_widget = Paragraph::new(notes_text)
         .style(Style::default().fg(Color::Green))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(border_style)
-                .title("Notes")
-                .padding(ratatui::widgets::Padding::horizontal(1)),
-        )
+        .block(block)
         .wrap(ratatui::widgets::Wrap { trim: false });
     f.render_widget(notes_widget, area);
+    if let Some(click_targets) = click_targets {
+        click_targets.push(ClickTarget::new(inner, ClickAction::Notes));
+    }
 }
 
 /// Calculates the number of display lines needed for text at given width
@@ -693,6 +792,7 @@ fn render_strength_mobility_expanded(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     scroll_offset: u16,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -744,6 +844,12 @@ fn render_strength_mobility_expanded(
         .scroll((scroll_offset, 0));
 
     f.render_widget(paragraph, expanded_area);
+    if let Some(click_targets) = click_targets {
+        click_targets.push(ClickTarget::new(
+            expanded_area,
+            ClickAction::StrengthMobility,
+        ));
+    }
 }
 
 /// Renders expanded Notes section when focused
@@ -753,6 +859,7 @@ fn render_notes_expanded(
     selected_date: NaiveDate,
     daily_logs: &[DailyLog],
     scroll_offset: u16,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let log = daily_logs.iter().find(|log| log.date == selected_date);
 
@@ -804,4 +911,118 @@ fn render_notes_expanded(
         .scroll((scroll_offset, 0));
 
     f.render_widget(paragraph, expanded_area);
+    if let Some(click_targets) = click_targets {
+        click_targets.push(ClickTarget::new(expanded_area, ClickAction::Notes));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn daily_view_registers_each_numeric_field() {
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = AppState::new();
+        let mut food_state = ListState::default();
+        let mut sokay_state = ListState::default();
+        let mut targets = Vec::new();
+
+        terminal
+            .draw(|frame| {
+                render_daily_view_screen(
+                    frame,
+                    &state,
+                    &mut food_state,
+                    &mut sokay_state,
+                    "",
+                    None,
+                    Some(&mut targets),
+                );
+            })
+            .unwrap();
+
+        for field in [
+            FieldType::Weight,
+            FieldType::Waist,
+            FieldType::Miles,
+            FieldType::Elevation,
+        ] {
+            assert!(
+                targets
+                    .iter()
+                    .any(|target| target.action == ClickAction::EditField(field))
+            );
+        }
+    }
+
+    #[test]
+    fn expanded_notes_target_is_registered_after_underlying_sections() {
+        let backend = TestBackend::new(100, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = AppState::new();
+        state.focused_section = FocusedSection::Notes;
+        let date = state.selected_date;
+        state.daily_logs.push(DailyLog {
+            date,
+            notes: Some("long notes ".repeat(200)),
+            ..DailyLog::new(date)
+        });
+        let mut food_state = ListState::default();
+        let mut sokay_state = ListState::default();
+        let mut targets = Vec::new();
+
+        terminal
+            .draw(|frame| {
+                render_daily_view_screen(
+                    frame,
+                    &state,
+                    &mut food_state,
+                    &mut sokay_state,
+                    "",
+                    None,
+                    Some(&mut targets),
+                );
+            })
+            .unwrap();
+
+        let notes_targets: Vec<&ClickTarget> = targets
+            .iter()
+            .filter(|target| target.action == ClickAction::Notes)
+            .collect();
+        assert_eq!(notes_targets.len(), 2);
+        assert!(notes_targets[1].area.height > notes_targets[0].area.height);
+        assert_eq!(
+            targets.last().map(|target| &target.action),
+            Some(&ClickAction::Notes)
+        );
+    }
+
+    #[test]
+    fn visible_list_targets_include_scroll_offset() {
+        let mut targets = Vec::new();
+        push_visible_list_targets(
+            &mut targets,
+            ratatui::layout::Rect::new(5, 10, 20, 3),
+            4,
+            10,
+            ClickAction::SelectFood,
+        );
+
+        assert_eq!(
+            targets
+                .iter()
+                .map(|target| target.action.clone())
+                .collect::<Vec<_>>(),
+            vec![
+                ClickAction::SelectFood(4),
+                ClickAction::SelectFood(5),
+                ClickAction::SelectFood(6),
+            ]
+        );
+        assert_eq!(targets[0].area.y, 10);
+        assert_eq!(targets[2].area.y, 12);
+    }
 }

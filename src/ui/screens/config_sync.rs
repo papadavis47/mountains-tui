@@ -6,9 +6,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph},
 };
 
+use super::startup::render_startup_screen;
 use crate::models::{AppState, ConfigSyncField};
 use crate::ui::components::centered_rect;
-use super::startup::render_startup_screen;
+use crate::ui::{ClickAction, ClickTarget};
 
 pub fn render_config_sync_screen(
     f: &mut Frame,
@@ -17,9 +18,10 @@ pub fn render_config_sync_screen(
     token_buffer: &str,
     sync_enabled: bool,
     has_saved_token: bool,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     // Render startup screen behind as backdrop
-    render_startup_screen(f, state);
+    render_startup_screen(f, state, None);
 
     let popup_area = centered_rect(f.area(), 60, 50);
     f.render_widget(Clear, popup_area);
@@ -55,21 +57,30 @@ pub fn render_config_sync_screen(
             Constraint::Length(1), // Enable toggle
             Constraint::Length(1), // spacing
             Constraint::Length(1), // status message
-            Constraint::Min(0),   // remaining
+            Constraint::Min(0),    // remaining
             Constraint::Length(1), // help line
         ])
         .split(inner_area);
 
     // DB URL label
     let url_label_style = if *focused == ConfigSyncField::DbUrl {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
-    f.render_widget(Paragraph::new("Database URL:").style(url_label_style), chunks[0]);
+    f.render_widget(
+        Paragraph::new("Database URL:").style(url_label_style),
+        chunks[0],
+    );
 
     // DB URL input
-    let url_display = if url_buffer.is_empty() { " " } else { url_buffer };
+    let url_display = if url_buffer.is_empty() {
+        " "
+    } else {
+        url_buffer
+    };
     let url_style = if *focused == ConfigSyncField::DbUrl {
         Style::default().fg(Color::White)
     } else {
@@ -84,17 +95,24 @@ pub fn render_config_sync_screen(
         .borders(Borders::ALL)
         .border_style(Style::default().fg(url_border_color));
     f.render_widget(
-        Paragraph::new(url_display).style(url_style).block(url_block),
+        Paragraph::new(url_display)
+            .style(url_style)
+            .block(url_block),
         chunks[1],
     );
 
     // Auth Token label
     let token_label_style = if *focused == ConfigSyncField::AuthToken {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
-    f.render_widget(Paragraph::new("Auth Token:").style(token_label_style), chunks[3]);
+    f.render_widget(
+        Paragraph::new("Auth Token:").style(token_label_style),
+        chunks[3],
+    );
 
     // Auth Token input — mask with stars, show placeholder if saved token exists
     let token_display = if token_buffer.is_empty() {
@@ -127,7 +145,9 @@ pub fn render_config_sync_screen(
     };
 
     f.render_widget(
-        Paragraph::new(token_text).style(token_style).block(token_block),
+        Paragraph::new(token_text)
+            .style(token_style)
+            .block(token_block),
         chunks[4],
     );
 
@@ -142,19 +162,29 @@ pub fn render_config_sync_screen(
 
     // Enable toggle
     let toggle_style = if *focused == ConfigSyncField::EnableToggle {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
 
     let enabled_span = if sync_enabled {
-        Span::styled("[Enabled]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+        Span::styled(
+            "[Enabled]",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )
     } else {
         Span::styled("Enabled", toggle_style)
     };
 
     let disabled_span = if !sync_enabled {
-        Span::styled("[Disabled]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        Span::styled(
+            "[Disabled]",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )
     } else {
         Span::styled("Disabled", toggle_style)
     };
@@ -197,4 +227,61 @@ pub fn render_config_sync_screen(
         Paragraph::new(Line::from(help_spans)).alignment(ratatui::layout::Alignment::Center),
         chunks[11],
     );
+
+    if let Some(click_targets) = click_targets {
+        click_targets.push(ClickTarget::new(
+            chunks[1],
+            ClickAction::FocusConfigField(ConfigSyncField::DbUrl),
+        ));
+        click_targets.push(ClickTarget::new(
+            chunks[4],
+            ClickAction::FocusConfigField(ConfigSyncField::AuthToken),
+        ));
+        click_targets.push(ClickTarget::new(chunks[7], ClickAction::ToggleConfigSync));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn config_modal_registers_only_its_own_fields() {
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut targets = Vec::new();
+
+        terminal
+            .draw(|frame| {
+                render_config_sync_screen(
+                    frame,
+                    &AppState::new(),
+                    "",
+                    "",
+                    false,
+                    false,
+                    Some(&mut targets),
+                );
+            })
+            .unwrap();
+
+        assert_eq!(targets.len(), 3);
+        assert!(targets.iter().any(|target| {
+            target.action == ClickAction::FocusConfigField(ConfigSyncField::DbUrl)
+        }));
+        assert!(targets.iter().any(|target| {
+            target.action == ClickAction::FocusConfigField(ConfigSyncField::AuthToken)
+        }));
+        assert!(
+            targets
+                .iter()
+                .any(|target| target.action == ClickAction::ToggleConfigSync)
+        );
+        assert!(
+            targets
+                .iter()
+                .all(|target| target.action != ClickAction::OpenStatistics)
+        );
+    }
 }

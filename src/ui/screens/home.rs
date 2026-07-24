@@ -4,7 +4,10 @@ use ratatui::{
 };
 
 use crate::models::AppState;
-use crate::ui::components::{create_highlight_style, create_standard_layout, render_help, render_title};
+use crate::ui::components::{
+    create_highlight_style, create_standard_layout, render_help, render_title,
+};
+use crate::ui::{ClickAction, ClickTarget};
 
 /// Renders the home screen showing all available daily logs
 pub fn render_home_screen(
@@ -12,6 +15,7 @@ pub fn render_home_screen(
     state: &AppState,
     list_state: &mut ListState,
     sync_status: &str,
+    click_targets: Option<&mut Vec<ClickTarget>>,
 ) {
     let chunks = create_standard_layout(f.area());
 
@@ -36,16 +40,35 @@ pub fn render_home_screen(
     };
 
     // Create the List widget with styling
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Daily Training Logs")
+        .padding(ratatui::widgets::Padding::uniform(1));
+    let list_inner = block.inner(chunks[1]);
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Daily Training Logs")
-                .padding(ratatui::widgets::Padding::uniform(1)),
-        )
+        .block(block)
         .highlight_style(create_highlight_style());
 
     f.render_stateful_widget(list, chunks[1], list_state);
+
+    if let Some(click_targets) = click_targets {
+        let first_visible = list_state.offset();
+        for row in 0..list_inner.height as usize {
+            let index = first_visible + row;
+            if index >= state.daily_logs.len() {
+                break;
+            }
+            click_targets.push(ClickTarget::new(
+                ratatui::layout::Rect::new(
+                    list_inner.x,
+                    list_inner.y + row as u16,
+                    list_inner.width,
+                    1,
+                ),
+                ClickAction::OpenLog(index),
+            ));
+        }
+    }
 
     // Render help text
     render_help(
@@ -60,4 +83,67 @@ pub fn render_home_screen(
         true,
         false,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn click_targets_follow_the_stateful_lists_scroll_offset() {
+        let mut state = AppState::new();
+        state.daily_logs = (1..=10)
+            .rev()
+            .map(|day| crate::models::DailyLog::new(NaiveDate::from_ymd_opt(2026, 7, day).unwrap()))
+            .collect();
+        let mut list_state = ListState::default();
+        list_state.select(Some(7));
+        let backend = TestBackend::new(80, 16);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut targets = Vec::new();
+
+        terminal
+            .draw(|frame| {
+                render_home_screen(frame, &state, &mut list_state, "", Some(&mut targets));
+            })
+            .unwrap();
+
+        let indices: Vec<usize> = targets
+            .iter()
+            .filter_map(|target| match target.action {
+                ClickAction::OpenLog(index) => Some(index),
+                _ => None,
+            })
+            .collect();
+        assert!(!indices.is_empty());
+        assert_eq!(indices[0], list_state.offset());
+        assert_eq!(
+            indices.last().copied(),
+            Some(list_state.offset() + indices.len() - 1)
+        );
+    }
+
+    #[test]
+    fn empty_list_placeholder_is_not_clickable() {
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut list_state = ListState::default();
+        let mut targets = Vec::new();
+
+        terminal
+            .draw(|frame| {
+                render_home_screen(
+                    frame,
+                    &AppState::new(),
+                    &mut list_state,
+                    "",
+                    Some(&mut targets),
+                );
+            })
+            .unwrap();
+
+        assert!(targets.is_empty());
+    }
 }

@@ -15,7 +15,7 @@ pub fn render_add_food_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Add Food - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Yellow);
@@ -32,7 +32,7 @@ pub fn render_edit_food_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Edit Food - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Yellow);
@@ -49,7 +49,7 @@ pub fn render_edit_strength_mobility_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Edit Strength & Mobility - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::multiline(title, Color::Cyan);
@@ -66,7 +66,7 @@ pub fn render_edit_notes_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Edit Notes - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::multiline(title, Color::Green);
@@ -83,7 +83,7 @@ pub fn render_add_sokay_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Add Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Magenta);
@@ -99,7 +99,7 @@ pub fn render_date_input_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_home_screen(f, state, list_state, sync_status);
+    render_home_screen(f, state, list_state, sync_status, None);
 
     let (title, color) = match &state.date_input_error {
         Some(err) => (format!("Add Entry (MM.DD.YYYY) - {}", err), Color::Red),
@@ -119,7 +119,7 @@ pub fn render_edit_sokay_screen(
     input_buffer: &str,
     cursor_position: usize,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let title = format!("Edit Sokay Entry - {}", state.selected_date.format("%B %d, %Y"));
     let config = InputModalConfig::text(title, Color::Magenta);

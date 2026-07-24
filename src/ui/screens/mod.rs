@@ -1,4 +1,5 @@
 pub mod startup;
+pub mod statistics;
 pub mod home;
 pub mod daily_view;
 pub mod inputs;
@@ -8,6 +9,7 @@ pub mod config_sync;
 
 // Re-export all public functions for backward compatibility
 pub use startup::render_startup_screen;
+pub use statistics::render_statistics_screen;
 pub use home::render_home_screen;
 pub use daily_view::{max_scroll_offset, render_daily_view_screen, InPlaceEdit};
 pub use inputs::{

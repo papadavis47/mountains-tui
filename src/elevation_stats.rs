@@ -1,28 +1,38 @@
 use crate::models::DailyLog;
-use chrono::{Datelike, Local};
+use chrono::{Datelike, NaiveDate};
 
 const ELEVATION_THRESHOLD: i32 = 1000;
 
-pub fn count_monthly_1000_days(logs: &[DailyLog]) -> usize {
-    let now = Local::now().date_naive();
-    let current_year = now.year();
-    let current_month = now.month();
-
+pub fn count_monthly_1000_days(logs: &[DailyLog], reference_date: NaiveDate) -> usize {
     logs.iter()
         .filter(|log| {
-            log.date.year() == current_year
-                && log.date.month() == current_month
+            log.date.year() == reference_date.year()
+                && log.date.month() == reference_date.month()
                 && log.elevation_gain.unwrap_or(0) >= ELEVATION_THRESHOLD
         })
         .count()
 }
 
-pub fn calculate_yearly_elevation(logs: &[DailyLog]) -> i32 {
-    let now = Local::now().date_naive();
-    let current_year = now.year();
-
+pub fn calculate_weekly_elevation(logs: &[DailyLog], reference_date: NaiveDate) -> i32 {
+    let current_week = reference_date.iso_week();
     logs.iter()
-        .filter(|log| log.date.year() == current_year)
+        .filter(|log| log.date.iso_week() == current_week)
+        .filter_map(|log| log.elevation_gain)
+        .sum()
+}
+
+pub fn calculate_monthly_elevation(logs: &[DailyLog], reference_date: NaiveDate) -> i32 {
+    logs.iter()
+        .filter(|log| {
+            log.date.year() == reference_date.year() && log.date.month() == reference_date.month()
+        })
+        .filter_map(|log| log.elevation_gain)
+        .sum()
+}
+
+pub fn calculate_yearly_elevation(logs: &[DailyLog], reference_date: NaiveDate) -> i32 {
+    logs.iter()
+        .filter(|log| log.date.year() == reference_date.year())
         .filter_map(|log| log.elevation_gain)
         .sum()
 }
@@ -83,63 +93,61 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
-    #[test]
-    fn test_count_monthly_1000_days() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
-        let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                elevation_gain: Some(1200),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap(),
-                elevation_gain: Some(800),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 3).unwrap(),
-                elevation_gain: Some(1500),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 3).unwrap())
-            },
-        ];
-
-        assert_eq!(count_monthly_1000_days(&logs), 2);
+    fn log(date: NaiveDate, elevation: Option<i32>) -> DailyLog {
+        DailyLog {
+            date,
+            elevation_gain: elevation,
+            ..DailyLog::new(date)
+        }
     }
 
     #[test]
-    fn test_calculate_yearly_elevation() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-
+    fn count_monthly_1000_days_matches_month_year_and_threshold() {
+        let reference = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap(),
-                elevation_gain: Some(1200),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap(),
-                elevation_gain: Some(800),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year - 1, 1, 1).unwrap(),
-                elevation_gain: Some(2000),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year - 1, 1, 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), Some(1200)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(), Some(800)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 3).unwrap(), Some(1500)),
+            log(NaiveDate::from_ymd_opt(2025, 1, 3).unwrap(), Some(2000)),
+            log(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), Some(2000)),
         ];
 
-        assert_eq!(calculate_yearly_elevation(&logs), 2000); // Only current year
+        assert_eq!(count_monthly_1000_days(&logs, reference), 2);
+    }
+
+    #[test]
+    fn elevation_totals_match_week_month_and_year() {
+        let reference = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
+        let logs = vec![
+            log(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), Some(400)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(), Some(800)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(), Some(1200)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(), Some(1500)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 27).unwrap(), None),
+            log(NaiveDate::from_ymd_opt(2025, 7, 22).unwrap(), Some(5000)),
+        ];
+
+        assert_eq!(calculate_weekly_elevation(&logs, reference), 2700);
+        assert_eq!(calculate_monthly_elevation(&logs, reference), 3500);
+        assert_eq!(calculate_yearly_elevation(&logs, reference), 3900);
+    }
+
+    #[test]
+    fn calculate_weekly_elevation_handles_iso_week_across_calendar_years() {
+        let reference = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+        let logs = vec![
+            log(NaiveDate::from_ymd_opt(2025, 12, 28).unwrap(), Some(5000)),
+            log(NaiveDate::from_ymd_opt(2025, 12, 29).unwrap(), Some(1200)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 4).unwrap(), Some(1500)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(), Some(6000)),
+        ];
+
+        assert_eq!(calculate_weekly_elevation(&logs, reference), 2700);
     }
 
     #[test]
     fn test_calculate_current_streak() {
-        // Create a streak of 3 consecutive days ending today
-        let today = Local::now().date_naive();
+        let today = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
         let yesterday = today.pred_opt().unwrap();
         let two_days_ago = yesterday.pred_opt().unwrap();
 

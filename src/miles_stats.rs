@@ -1,5 +1,5 @@
-use chrono::{Datelike, Local};
 use crate::models::DailyLog;
+use chrono::{Datelike, NaiveDate};
 
 /// Rounds to one decimal place, normalizing negative zero to positive zero.
 /// An empty `f32` sum yields `-0.0` (std's additive identity), which would
@@ -9,25 +9,33 @@ fn round_tenths(total: f32) -> f32 {
     if rounded == 0.0 { 0.0 } else { rounded }
 }
 
-pub fn calculate_yearly_miles(logs: &[DailyLog]) -> f32 {
-    let now = Local::now().date_naive();
-    let current_year = now.year();
-
-    let total: f32 = logs.iter()
-        .filter(|log| log.date.year() == current_year)
+pub fn calculate_weekly_miles(logs: &[DailyLog], reference_date: NaiveDate) -> f32 {
+    let current_week = reference_date.iso_week();
+    let total: f32 = logs
+        .iter()
+        .filter(|log| log.date.iso_week() == current_week)
         .filter_map(|log| log.miles_covered)
         .sum();
 
     round_tenths(total)
 }
 
-pub fn calculate_monthly_miles(logs: &[DailyLog]) -> f32 {
-    let now = Local::now().date_naive();
-    let current_year = now.year();
-    let current_month = now.month();
+pub fn calculate_monthly_miles(logs: &[DailyLog], reference_date: NaiveDate) -> f32 {
+    let total: f32 = logs
+        .iter()
+        .filter(|log| {
+            log.date.year() == reference_date.year() && log.date.month() == reference_date.month()
+        })
+        .filter_map(|log| log.miles_covered)
+        .sum();
 
-    let total: f32 = logs.iter()
-        .filter(|log| log.date.year() == current_year && log.date.month() == current_month)
+    round_tenths(total)
+}
+
+pub fn calculate_yearly_miles(logs: &[DailyLog], reference_date: NaiveDate) -> f32 {
+    let total: f32 = logs
+        .iter()
+        .filter(|log| log.date.year() == reference_date.year())
         .filter_map(|log| log.miles_covered)
         .sum();
 
@@ -37,225 +45,92 @@ pub fn calculate_monthly_miles(logs: &[DailyLog]) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Local, NaiveDate};
+    use chrono::NaiveDate;
+
+    fn log(date: NaiveDate, miles: Option<f32>) -> DailyLog {
+        DailyLog {
+            date,
+            miles_covered: miles,
+            ..DailyLog::new(date)
+        }
+    }
 
     #[test]
-    fn test_calculate_yearly_miles() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-
+    fn calculate_weekly_miles_uses_iso_week_boundaries() {
+        let reference = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap(),
-                miles_covered: Some(5.5),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap(),
-                miles_covered: Some(3.2),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year - 1, 1, 1).unwrap(),
-                miles_covered: Some(10.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year - 1, 1, 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(), Some(20.0)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(), Some(5.5)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(), Some(3.2)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 27).unwrap(), Some(30.0)),
         ];
 
-        assert_eq!(calculate_yearly_miles(&logs), 8.7); // Only current year
+        assert_eq!(calculate_weekly_miles(&logs, reference), 8.7);
     }
 
     #[test]
-    fn test_calculate_yearly_miles_empty() {
-        let logs: Vec<DailyLog> = vec![];
-        let result = calculate_yearly_miles(&logs);
-        assert_eq!(result, 0.0);
-        // Guard against negative zero (empty f32 sum is -0.0), which displays as "-0.0".
-        assert!(!result.is_sign_negative());
-        assert_eq!(format!("{:.1}", result), "0.0");
-    }
-
-    #[test]
-    fn test_calculate_yearly_miles_none_values() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-
+    fn calculate_weekly_miles_handles_iso_week_across_calendar_years() {
+        let reference = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap(),
-                miles_covered: None,
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap(),
-                miles_covered: Some(5.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2025, 12, 28).unwrap(), Some(20.0)),
+            log(NaiveDate::from_ymd_opt(2025, 12, 29).unwrap(), Some(5.0)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 4).unwrap(), Some(7.0)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(), Some(30.0)),
         ];
 
-        assert_eq!(calculate_yearly_miles(&logs), 5.0);
+        assert_eq!(calculate_weekly_miles(&logs, reference), 12.0);
     }
 
     #[test]
-    fn test_calculate_yearly_miles_rounding() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-
+    fn calculate_monthly_miles_matches_month_and_year() {
+        let reference = NaiveDate::from_ymd_opt(2026, 1, 15).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap(),
-                miles_covered: Some(7.64),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap(),
-                miles_covered: Some(30.476),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 2, 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), Some(20.0)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), Some(5.5)),
+            log(NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(), Some(3.2)),
+            log(NaiveDate::from_ymd_opt(2025, 1, 15).unwrap(), Some(30.0)),
         ];
 
-        // 7.64 + 30.476 = 38.116, rounded to 1 decimal = 38.1
-        assert_eq!(calculate_yearly_miles(&logs), 38.1);
+        assert_eq!(calculate_monthly_miles(&logs, reference), 8.7);
     }
 
     #[test]
-    fn test_calculate_yearly_miles_rounding_up() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-
+    fn calculate_yearly_miles_matches_year_and_skips_none() {
+        let reference = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap(),
-                miles_covered: Some(7.65),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, 1, 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), None),
+            log(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap(), Some(5.5)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 22).unwrap(), Some(3.2)),
+            log(NaiveDate::from_ymd_opt(2025, 7, 22).unwrap(), Some(30.0)),
         ];
 
-        // 7.65 rounded to 1 decimal = 7.7 (rounds up)
-        assert_eq!(calculate_yearly_miles(&logs), 7.7);
+        assert_eq!(calculate_yearly_miles(&logs, reference), 8.7);
     }
 
     #[test]
-    fn test_calculate_monthly_miles() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
+    fn mileage_totals_round_to_tenths() {
+        let reference = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
         let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                miles_covered: Some(5.5),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 15).unwrap(),
-                miles_covered: Some(3.2),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 15).unwrap())
-            },
-            // Previous month should be excluded
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, (current_month - 1).max(1), 1).unwrap(),
-                miles_covered: Some(10.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, (current_month - 1).max(1), 1).unwrap())
-            },
+            log(NaiveDate::from_ymd_opt(2026, 7, 21).unwrap(), Some(7.64)),
+            log(NaiveDate::from_ymd_opt(2026, 7, 22).unwrap(), Some(30.476)),
         ];
 
-        assert_eq!(calculate_monthly_miles(&logs), 8.7); // Only current month
+        assert_eq!(calculate_weekly_miles(&logs, reference), 38.1);
+        assert_eq!(calculate_monthly_miles(&logs, reference), 38.1);
+        assert_eq!(calculate_yearly_miles(&logs, reference), 38.1);
     }
 
     #[test]
-    fn test_calculate_monthly_miles_empty() {
-        let logs: Vec<DailyLog> = vec![];
-        let result = calculate_monthly_miles(&logs);
-        assert_eq!(result, 0.0);
-        // Guard against negative zero (empty f32 sum is -0.0), which displays as "-0.0".
-        assert!(!result.is_sign_negative());
-        assert_eq!(format!("{:.1}", result), "0.0");
-    }
-
-    #[test]
-    fn test_calculate_monthly_miles_none_values() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
-        let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                miles_covered: None,
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap(),
-                miles_covered: Some(5.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap())
-            },
-        ];
-
-        assert_eq!(calculate_monthly_miles(&logs), 5.0);
-    }
-
-    #[test]
-    fn test_calculate_monthly_miles_excludes_previous_year() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
-        let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                miles_covered: Some(5.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-            // Same month, previous year should be excluded
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year - 1, current_month, 1).unwrap(),
-                miles_covered: Some(10.0),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year - 1, current_month, 1).unwrap())
-            },
-        ];
-
-        assert_eq!(calculate_monthly_miles(&logs), 5.0);
-    }
-
-    #[test]
-    fn test_calculate_monthly_miles_rounding() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
-        let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                miles_covered: Some(7.64),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap(),
-                miles_covered: Some(30.476),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 2).unwrap())
-            },
-        ];
-
-        // 7.64 + 30.476 = 38.116, rounded to 1 decimal = 38.1
-        assert_eq!(calculate_monthly_miles(&logs), 38.1);
-    }
-
-    #[test]
-    fn test_calculate_monthly_miles_rounding_up() {
-        let now = Local::now().date_naive();
-        let current_year = now.year();
-        let current_month = now.month();
-
-        let logs = vec![
-            DailyLog {
-                date: NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap(),
-                miles_covered: Some(7.65),
-                ..DailyLog::new(NaiveDate::from_ymd_opt(current_year, current_month, 1).unwrap())
-            },
-        ];
-
-        // 7.65 rounded to 1 decimal = 7.7 (rounds up)
-        assert_eq!(calculate_monthly_miles(&logs), 7.7);
+    fn empty_mileage_totals_are_positive_zero() {
+        let reference = NaiveDate::from_ymd_opt(2026, 7, 22).unwrap();
+        for result in [
+            calculate_weekly_miles(&[], reference),
+            calculate_monthly_miles(&[], reference),
+            calculate_yearly_miles(&[], reference),
+        ] {
+            assert_eq!(result, 0.0);
+            assert!(!result.is_sign_negative());
+            assert_eq!(format!("{result:.1}"), "0.0");
+        }
     }
 }

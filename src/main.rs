@@ -60,7 +60,7 @@ const HELP_TEXT: &str = concat!(
     "Run with no arguments to launch the interactive TUI.\n",
     "Data is stored in ~/.mountains/ (database, config, markdown backups).\n",
     "\n",
-    "Repository: https://github.com/papadavis47/mountains-tui",
+    "Repository: https://github.com/papadavis47/mountains",
 );
 
 /// Handles `--version`/`--help` flags before the TUI starts. Exits the process

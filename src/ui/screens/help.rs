@@ -17,7 +17,7 @@ pub fn render_shortcuts_help_screen(
     sokay_list_state: &mut ListState,
     sync_status: &str,
 ) {
-    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None);
+    render_daily_view_screen(f, state, food_list_state, sokay_list_state, sync_status, None, None);
 
     let shortcuts_text = "\
 Measurements:
